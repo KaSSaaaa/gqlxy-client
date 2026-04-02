@@ -1,0 +1,20 @@
+{
+  "name": "gqlxy-client",
+  "version": "0.1.0",
+  "description": "C++ GraphQL client with HTTP/WS/SSE support, RxCpp reactivity, and C++20 coroutines",
+  "homepage": "https://github.com/KaSSaaaa/gqlxy-client",
+  "license": "MIT",
+  "supports": "!uwp",
+  "dependencies": [
+    "rxcpp",
+    "nlohmann-json",
+    "boost-beast",
+    "openssl"
+  ],
+  "features": {
+    "tests": {
+      "description": "Build and run the test suite",
+      "dependencies": ["gtest"]
+    }
+  }
+}
