@@ -1,12 +1,13 @@
 #include <gqlxy/links/split_link.h>
 
-namespace gqlxy {
+using namespace std;
+using namespace gqlxy;
 
-SplitLink::SplitLink(Predicate condition, std::shared_ptr<Link> left, std::shared_ptr<Link> right)
-    : condition_(std::move(condition)), left_(std::move(left)), right_(std::move(right)) {}
+SplitLink::SplitLink(const Predicate& condition, const shared_ptr<Link>& left, const shared_ptr<Link>& right)
+    : _condition(condition),
+      _left(left),
+      _right(right) {}
 
 Observable<GraphQLResult> SplitLink::Execute(const GraphQLRequest& request) {
-    return condition_(request) ? left_->Execute(request) : right_->Execute(request);
+    return _condition(request) ? _left->Execute(request) : _right->Execute(request);
 }
-
-} // namespace gqlxy

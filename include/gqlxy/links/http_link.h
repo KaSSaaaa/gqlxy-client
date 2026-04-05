@@ -1,22 +1,24 @@
 #pragma once
 
 #include <gqlxy/link.h>
+#include <map>
 #include <string>
 
 namespace gqlxy {
 
 struct HttpLinkOptions {
     std::string url;
+    std::map<std::string, std::string> headers;
 };
 
 class HttpLink : public Link {
 public:
-    explicit HttpLink(HttpLinkOptions options);
+    HttpLink(const HttpLinkOptions& options);
 
     Observable<GraphQLResult> Execute(const GraphQLRequest& request) override;
 
 private:
-    HttpLinkOptions options_;
+    HttpLinkOptions _options;
 };
 
-} // namespace gqlxy
+}

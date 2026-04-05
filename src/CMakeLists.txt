@@ -18,6 +18,7 @@ target_link_libraries(gqlxy_client
 		nlohmann_json::nlohmann_json
 	PRIVATE
 		Boost::beast
+		Boost::url
 		OpenSSL::SSL
 		OpenSSL::Crypto
 )

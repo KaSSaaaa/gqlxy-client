@@ -1,28 +1,30 @@
 #include <gqlxy/cache/in_memory_cache.h>
 #include <nlohmann/json.hpp>
 
-namespace gqlxy {
+using namespace std;
+using namespace gqlxy;
+using namespace nlohmann;
 
-std::optional<GraphQLResult> InMemoryCache::Read(const GraphQLRequest& request) {
-    std::lock_guard lock(mutex_);
-    auto it = store_.find(CacheKey(request));
-    if (it == store_.end()) return std::nullopt;
+optional<GraphQLResult> InMemoryCache::Read(const GraphQLRequest& request) {
+    lock_guard lock(_mutex);
+    auto it = _store.find(CacheKey(request));
+    if (it == _store.end()) return nullopt;
     return it->second;
 }
 
 void InMemoryCache::Write(const GraphQLRequest& request, const GraphQLResult& result) {
-    std::lock_guard lock(mutex_);
-    store_[CacheKey(request)] = result;
+    lock_guard lock(_mutex);
+    _store[CacheKey(request)] = result;
 }
 
 void InMemoryCache::Evict(const GraphQLRequest& request) {
-    std::lock_guard lock(mutex_);
-    store_.erase(CacheKey(request));
+    lock_guard lock(_mutex);
+    _store.erase(CacheKey(request));
 }
 
-std::string InMemoryCache::CacheKey(const GraphQLRequest& request) {
-    nlohmann::json key = {{"query", request.query}, {"variables", request.variables}};
-    return key.dump();
+string InMemoryCache::CacheKey(const GraphQLRequest& request) {
+    return json {
+        {"query", request.query},
+        {"variables", request.variables}
+    }.dump();
 }
-
-} // namespace gqlxy

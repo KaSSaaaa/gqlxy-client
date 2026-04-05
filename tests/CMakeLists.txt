@@ -1,15 +1,22 @@
-if(NOT BUILD_TESTING)
-  return()
-endif()
+if (NOT BUILD_TESTING)
+    return()
+endif ()
 
 find_package(GTest CONFIG REQUIRED)
 
 enable_testing()
 include(GoogleTest)
 
-file(GLOB UNIT_TEST_SOURCES "unit/*.cpp")
+include(FetchContent)
+set(BUILD_STANDALONE_SERVER ON CACHE BOOL "" FORCE)
+set(ENABLE_VCPKG_BOOTSTRAP OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+        gqlxy-server
+        GIT_REPOSITORY https://github.com/KaSSaaaa/gqlxy-server.git
+        GIT_TAG main
+)
+FetchContent_MakeAvailable(gqlxy-server)
 
-add_executable(gqlxy_client_unit_tests ${UNIT_TEST_SOURCES})
-target_link_libraries(gqlxy_client_unit_tests PRIVATE gqlxy_client GTest::gtest_main)
-target_include_directories(gqlxy_client_unit_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
-gtest_discover_tests(gqlxy_client_unit_tests)
+add_subdirectory(unit)
+add_subdirectory(e2e)
+

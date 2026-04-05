@@ -17,7 +17,7 @@ public:
     Observable<GraphQLResult> Execute(const GraphQLRequest& request) override;
 
 private:
-    WsLinkOptions options_;
+    WsLinkOptions _options;
 };
 
-} // namespace gqlxy
+}

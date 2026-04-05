@@ -2,7 +2,7 @@
 
 namespace gqlxy {
 
-WsLink::WsLink(WsLinkOptions options) : options_(std::move(options)) {}
+WsLink::WsLink(WsLinkOptions options) : _options(std::move(options)) {}
 
 Observable<GraphQLResult> WsLink::Execute(const GraphQLRequest& request) {
     // TODO: implement using boost::beast WebSocket + graphql-transport-ws protocol
@@ -11,4 +11,4 @@ Observable<GraphQLResult> WsLink::Execute(const GraphQLRequest& request) {
     });
 }
 
-} // namespace gqlxy
+}

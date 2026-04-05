@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gqlxy/results.h>
+#include <gqlxy/client/results.h>
 #include <optional>
 
 namespace gqlxy {
@@ -13,4 +13,4 @@ public:
     virtual void Evict(const GraphQLRequest& request) = 0;
 };
 
-} // namespace gqlxy
+}

@@ -14,10 +14,10 @@ public:
     void Evict(const GraphQLRequest& request) override;
 
 private:
-    std::mutex mutex_;
-    std::unordered_map<std::string, GraphQLResult> store_;
+    std::mutex _mutex;
+    std::unordered_map<std::string, GraphQLResult> _store;
 
     static std::string CacheKey(const GraphQLRequest& request);
 };
 
-} // namespace gqlxy
+}

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <gqlxy/observable.h>
-#include <gqlxy/results.h>
+#include <gqlxy/client/results.h>
 
 namespace gqlxy {
 
@@ -11,4 +11,4 @@ public:
     virtual Observable<GraphQLResult> Execute(const GraphQLRequest& request) = 0;
 };
 
-} // namespace gqlxy
+}

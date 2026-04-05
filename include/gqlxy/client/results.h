@@ -25,4 +25,4 @@ struct GraphQLRequest {
     std::optional<std::string> operationName;
 };
 
-} // namespace gqlxy
+}

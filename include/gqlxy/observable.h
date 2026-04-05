@@ -24,21 +24,21 @@ public:
 
     // Accept any rxcpp observable source (typed or dynamic) and erase to dynamic_observable.
     template <typename Source>
-    Observable(rxcpp::observable<T, Source> inner) : inner_(inner.as_dynamic()) {}
+    Observable(rxcpp::observable<T, Source> inner) : _inner(inner.as_dynamic()) {}
 
     template <typename OnNext>
     auto subscribe(OnNext&& on_next) const {
-        return inner_.subscribe(std::forward<OnNext>(on_next));
+        return _inner.subscribe(std::forward<OnNext>(on_next));
     }
 
     template <typename OnNext, typename OnError>
     auto subscribe(OnNext&& on_next, OnError&& on_error) const {
-        return inner_.subscribe(std::forward<OnNext>(on_next), std::forward<OnError>(on_error));
+        return _inner.subscribe(std::forward<OnNext>(on_next), std::forward<OnError>(on_error));
     }
 
     template <typename OnNext, typename OnError, typename OnCompleted>
     auto subscribe(OnNext&& on_next, OnError&& on_error, OnCompleted&& on_completed) const {
-        return inner_.subscribe(
+        return _inner.subscribe(
             std::forward<OnNext>(on_next),
             std::forward<OnError>(on_error),
             std::forward<OnCompleted>(on_completed)
@@ -46,14 +46,14 @@ public:
     }
 
     // Implicit conversion for interop with rxcpp operators (map, filter, merge, etc.)
-    operator rxcpp::observable<T>() const { return inner_; }
+    operator rxcpp::observable<T>() const { return _inner; }
 
     // co_await resolves the first emitted value.
     // Throws if the observable completes without emitting or emits an error.
-    auto operator co_await() const { return Awaiter{inner_}; }
+    auto operator co_await() const { return Awaiter{_inner}; }
 
 private:
-    rxcpp::observable<T> inner_;
+    rxcpp::observable<T> _inner;
 
     struct AwaiterState {
         std::optional<T> value;
@@ -94,4 +94,4 @@ private:
     };
 };
 
-} // namespace gqlxy
+}

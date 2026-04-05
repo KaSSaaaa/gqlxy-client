@@ -1,23 +1,23 @@
 #include <gqlxy/client.h>
 
-namespace gqlxy {
+using namespace std;
+using namespace gqlxy;
+using namespace nlohmann;
 
-Client::Client(ClientOptions options) : options_(std::move(options)) {}
+Client::Client(const ClientOptions& options) : _options(options) {}
 
-Observable<GraphQLResult> Client::Query(std::string_view query, nlohmann::json variables) {
-    return Execute({.query = std::string(query), .variables = std::move(variables)});
+Observable<GraphQLResult> Client::Query(const string& query, const json& variables) {
+    return Execute({.query = string(query), .variables = variables});
 }
 
-Observable<GraphQLResult> Client::Mutation(std::string_view query, nlohmann::json variables) {
-    return Execute({.query = std::string(query), .variables = std::move(variables)});
+Observable<GraphQLResult> Client::Mutation(const string& query, const json& variables) {
+    return Execute({.query = string(query), .variables = variables});
 }
 
-Observable<GraphQLResult> Client::Subscribe(std::string_view query, nlohmann::json variables) {
-    return Execute({.query = std::string(query), .variables = std::move(variables)});
+Observable<GraphQLResult> Client::Subscribe(const string& query, const json& variables) {
+    return Execute({.query = string(query), .variables = variables});
 }
 
-Observable<GraphQLResult> Client::Execute(GraphQLRequest request) {
-    return options_.link->Execute(request);
+Observable<GraphQLResult> Client::Execute(const GraphQLRequest& request) {
+    return _options.link->Execute(request);
 }
-
-} // namespace gqlxy
