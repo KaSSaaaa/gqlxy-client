@@ -1,5 +1,5 @@
-#include "to_result.h"
 #include "server_fixture.h"
+#include "to_result.h"
 
 #include <gqlxy/client.h>
 #include <gqlxy/links/http_link.h>
@@ -220,4 +220,116 @@ TEST_F(SseTest, CustomHeadersForwarded) {
     ASSERT_FALSE(out.exception);
     ASSERT_EQ(out.values.size(), 2u);
     EXPECT_TRUE(out.completed);
+}
+
+// ─── WebSocket (graphql-transport-ws) tests ───────────────────────────────────
+
+#include <gqlxy/links/ws_link.h>
+
+static Client MakeWsClient(const map<string, string>& headers = {}) {
+    return Client({
+        .link = make_shared<WsLink>(WsLinkOptions {
+            .url = WsServerUrl,
+            .headers = headers,
+        }),
+    });
+}
+
+class WsLinkTest : public Test {
+protected:
+    Client _client {MakeWsClient()};
+};
+
+TEST_F(WsLinkTest, HelloQuery) {
+    auto out = to_result(_client.Query("{ hello }"));
+    ASSERT_GQL_SUCCESS(out);
+    EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
+    EXPECT_TRUE(out.completed);
+}
+
+TEST_F(WsLinkTest, EchoWithVariables) {
+    auto out = to_result(_client.Query(R"(
+        query Echo($msg: String!) {
+            echo(message: $msg)
+        }
+    )", {
+        {"msg", "ws-ping"}
+    }));
+    ASSERT_GQL_SUCCESS(out);
+    EXPECT_EQ(out.values[0].data.value()["echo"], "ws-ping");
+}
+
+TEST_F(WsLinkTest, GraphQLErrorPropagated) {
+    auto out = to_result(_client.Query("{ fail }"));
+    ASSERT_FALSE(out.exception);
+    ASSERT_EQ(out.values.size(), 1u);
+    EXPECT_TRUE(out.values[0].errors.has_value());
+    EXPECT_NE(out.values[0].errors->front().message.find("Intentional"), string::npos);
+}
+
+// Subscription over WebSocket — parameterized by event count.
+class WsCountTest : public TestWithParam<int> {
+protected:
+    Client _client {MakeWsClient()};
+};
+
+TEST_P(WsCountTest, ReceivesExactCountAndCompletes) {
+    const int count = GetParam();
+    auto out = to_result(_client.Subscribe(R"(
+        subscription OnCount($to: Int!) {
+            onCount(to: $to)
+        }
+    )", {
+        {"to", count}
+    }));
+
+    ASSERT_FALSE(out.exception);
+    ASSERT_EQ(out.values.size(), static_cast<size_t>(count));
+    EXPECT_TRUE(out.completed);
+
+    for (int i = 0; i < count; ++i) {
+        ASSERT_TRUE(out.values[i].data.has_value());
+        EXPECT_EQ(out.values[i].data.value()["onCount"].get<int>(), i + 1);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(EventCounts, WsCountTest, Values(0, 3, 5));
+
+// ─── P3: Connection reuse and concurrent subscriptions ───────────────────────
+
+class WsLinkPersistenceTest : public Test {
+protected:
+    // Single WsLink instance — all requests share one connection.
+    Client _client {MakeWsClient()};
+};
+
+TEST_F(WsLinkPersistenceTest, ConnectionReused) {
+    for (int i = 0; i < 3; ++i) {
+        auto out = to_result(_client.Query("{ hello }"));
+        ASSERT_GQL_SUCCESS(out);
+        EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
+    }
+}
+
+TEST_F(WsLinkPersistenceTest, ConcurrentSubscriptions) {
+    auto sub_f = std::async(std::launch::async, [this] {
+        return to_result(_client.Subscribe(R"(
+            subscription OnCount($to: Int!) {
+                onCount(to: $to)
+            }
+        )", {
+            {"to", 3}
+        }));
+    });
+    auto query_f = std::async(std::launch::async, [this] {
+        return to_result(_client.Query("{ hello }"));
+    });
+
+    auto sub_out = sub_f.get();
+    auto query_out = query_f.get();
+
+    ASSERT_GQL_SUCCESS(query_out);
+    ASSERT_FALSE(sub_out.exception);
+    ASSERT_EQ(sub_out.values.size(), 3u);
+    EXPECT_TRUE(sub_out.completed);
 }

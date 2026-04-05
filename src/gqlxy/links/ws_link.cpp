@@ -1,14 +1,22 @@
 #include <gqlxy/links/ws_link.h>
 
-namespace gqlxy {
+#include <gqlxy/internal/ws/ws_connection.h>
 
-WsLink::WsLink(WsLinkOptions options) : _options(std::move(options)) {}
+#include <boost/uuid/random_generator.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
+using namespace std;
+using namespace gqlxy;
+using namespace rxcpp;
+
+WsLink::WsLink(const WsLinkOptions& options)
+    : _options(std::move(options)),
+      _connection(make_shared<internal::WsConnection>(_options)) {}
 
 Observable<GraphQLResult> WsLink::Execute(const GraphQLRequest& request) {
-    // TODO: implement using boost::beast WebSocket + graphql-transport-ws protocol
-    return rxcpp::observable<>::create<GraphQLResult>([](rxcpp::subscriber<GraphQLResult> s) {
-        s.on_error(std::make_exception_ptr(std::runtime_error("WsLink not yet implemented")));
+    return observable<>::create<GraphQLResult>([conn = _connection, req = request](const auto& s) {
+        const auto id = boost::uuids::to_string(boost::uuids::random_generator()());
+        s.add([conn, id]() { conn->Unsubscribe(id); });
+        conn->Subscribe(id, req, s);
     });
-}
-
 }

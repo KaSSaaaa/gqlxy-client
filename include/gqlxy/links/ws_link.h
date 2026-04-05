@@ -1,23 +1,31 @@
 #pragma once
 
 #include <gqlxy/link.h>
+
+#include <map>
+#include <memory>
 #include <string>
+
+namespace gqlxy::internal {
+    class WsConnection;
+}
 
 namespace gqlxy {
 
 struct WsLinkOptions {
     std::string url;
+    std::map<std::string, std::string> headers;
 };
 
-// WebSocket link implementing the graphql-transport-ws protocol.
 class WsLink : public Link {
 public:
-    explicit WsLink(WsLinkOptions options);
+    WsLink(const WsLinkOptions& options);
 
     Observable<GraphQLResult> Execute(const GraphQLRequest& request) override;
 
 private:
     WsLinkOptions _options;
+    std::shared_ptr<internal::WsConnection> _connection;
 };
 
 }

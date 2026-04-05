@@ -10,6 +10,7 @@
     "nlohmann-json",
     "boost-beast",
     "boost-url",
+    "boost-uuid",
     "openssl"
   ],
   "features": {

@@ -11,15 +11,17 @@
 
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 
 namespace gqlxy::e2e {
 
 static const std::string ServerUrl = "http://localhost:4001/graphql";
+static const std::string WsServerUrl = "ws://localhost:4001/graphql";
 static constexpr uint16_t Port = 4001;
 
-inline bool wait_for_port(uint16_t port, std::chrono::seconds timeout = std::chrono::seconds {15}) {
+inline bool WaitForPort(uint16_t port, std::chrono::seconds timeout = std::chrono::seconds {15}) {
     namespace asio = boost::asio;
     using tcp = asio::ip::tcp;
 
@@ -39,15 +41,18 @@ inline bool wait_for_port(uint16_t port, std::chrono::seconds timeout = std::chr
 }
 
 class ServerEnvironment : public testing::Environment {
+    std::optional<Schema> _schema;
     std::unique_ptr<server::StandaloneServer> _server;
 
 public:
     void SetUp() override {
-        auto schema = MakeE2ESchema();
-        _server = std::make_unique<server::StandaloneServer>(
-            server::StandaloneServerOptions {.schema = schema, .port = Port});
+        _schema.emplace(MakeE2ESchema());
+        _server = std::make_unique<server::StandaloneServer>(server::StandaloneServerOptions {
+            .schema = *_schema,
+            .port = Port
+        });
         _server->StartAsync();
-        if (!wait_for_port(Port)) throw std::runtime_error("E2E server did not become ready within timeout");
+        if (!WaitForPort(Port)) throw std::runtime_error("E2E server did not become ready within timeout");
     }
 
     void TearDown() override {
@@ -55,6 +60,7 @@ public:
             _server->Stop();
             _server.reset();
         }
+        _schema.reset();
     }
 };
 

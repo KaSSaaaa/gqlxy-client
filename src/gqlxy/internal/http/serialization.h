@@ -5,7 +5,7 @@
 
 namespace gqlxy::internal {
 
-inline nlohmann::json serialize_request(const GraphQLRequest& req) {
+inline nlohmann::json SerializeRequest(const GraphQLRequest& req) {
     nlohmann::json body {
         {"query", req.query}
     };

@@ -31,7 +31,6 @@ auto trim(R&& s) {
     return std::string(r.begin(), r.end());
 }
 
-// Split a string by a single character delimiter.
 inline auto split(std::string_view s, char delim) -> std::vector<std::string> {
     return to_vector(
         s | std::views::split(delim)
@@ -51,14 +50,6 @@ auto to_optional(R&& r, std::ranges::iterator_t<R> it)
 {
     if (it == std::ranges::end(r)) return std::nullopt;
     return *it;
-}
-
-template <typename Pred>
-auto to_optional(bool condition, Pred&& pred) {
-    if (condition) {
-        return pred();
-    }
-    return std::nullopt;
 }
 
 template <std::ranges::range R, typename Pred>
@@ -81,7 +72,6 @@ auto flat_map(R&& r, F&& f) {
     return result;
 }
 
-// Split lines by blank-line separators into blocks (e.g. SSE event frames).
 inline auto chunk_by_blank(const std::vector<std::string>& lines)
     -> std::vector<std::vector<std::string>>
 {
