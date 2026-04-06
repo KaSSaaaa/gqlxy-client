@@ -20,6 +20,7 @@ struct WsLinkOptions {
 class WsLink : public Link {
 public:
     WsLink(const WsLinkOptions& options);
+    ~WsLink() override;
 
     Observable<GraphQLResult> Execute(const GraphQLRequest& request) override;
 

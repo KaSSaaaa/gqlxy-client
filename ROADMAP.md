@@ -60,14 +60,14 @@ production use.
 
 ---
 
-## P4 — Async Coroutine Integration
+## ~~P4 — Async Coroutine Integration~~ ✅ Done
 
 Wire `Task<T>` into the boost::asio event loop so that `Query()` / `Mutation()` truly suspend the coroutine instead of blocking.
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 13 | **asio coroutine executor** | Use `boost::asio::co_spawn` / `boost::asio::use_awaitable` |
-| 14 | **Task awaits observable** | Bridge `Observable` to `co_await` via a single-value adapter |
+| 13 | **asio coroutine executor** | Shared `AsioContext` singleton; `HttpLink` uses `boost::asio::co_spawn` / `boost::asio::use_awaitable` | ✅ |
+| 14 | **Task awaits observable** | Bridge `Observable` to `co_await` via a single-value adapter | ✅ |
 
 ---
 
@@ -89,7 +89,7 @@ Connect `InMemoryCache` to the client execution path.
 Phase 1 — HttpLink (+ SSE)    : done
 Phase 2 — WsLink               : done
 Phase 3 — Persistent WsLink    : done
-Phase 4 — Async coroutines     : #13, #14
+Phase 4 — Async coroutines     : done
 Phase 5 — Cache integration    : #15, #16, #17
 ```
 

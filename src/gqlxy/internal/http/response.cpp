@@ -1,10 +1,15 @@
 #include <gqlxy/internal/http/response.h>
+
+#include <boost/beast/http/field.hpp>
+#include <boost/beast/http/status.hpp>
 #include <gqlxy/internal/utils/ranges.h>
+#include <sstream>
 
 #include <nlohmann/json.hpp>
 
 using namespace std;
 using namespace nlohmann;
+using namespace boost::beast::http;
 
 namespace gqlxy::internal {
 
@@ -41,10 +46,12 @@ GraphQLResult ParseJsonResponse(const string& body) {
     return ParseJsonPayload(json::parse(body));
 }
 
-GraphQLResult MapHttpError(int status, string_view reason) {
+GraphQLResult MapHttpError(status status, string_view reason) {
+    stringstream statusStream;
+    statusStream << "HTTP " << status << " " << reason;
     return GraphQLResult{
         .errors = GraphQLErrors{
-            {.message = format("HTTP {} {}", status, reason)}
+            {.message = statusStream.str()}
         },
     };
 }

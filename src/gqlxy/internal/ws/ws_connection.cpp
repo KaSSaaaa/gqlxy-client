@@ -1,5 +1,6 @@
 #include <gqlxy/internal/ws/ws_connection.h>
 
+#include <gqlxy/internal/asio_context.h>
 #include <gqlxy/internal/http/response.h>
 #include <gqlxy/internal/http/serialization.h>
 
@@ -7,6 +8,7 @@
 #include <openssl/ssl.h>
 
 #include <algorithm>
+#include <future>
 #include <stdexcept>
 
 using namespace std;
@@ -21,15 +23,15 @@ using nlohmann::json;
 
 //TODO Refactor
 
-static string MakeSubscribe(const string& id, const GraphQLRequest& req) {
-    return json {{"type", "subscribe"}, {"id", id}, {"payload", SerializeRequest(req)}}.dump();
+static string Subscribe(const string& id, const GraphQLRequest& req) {
+    return json {
+        {"type", "subscribe"},
+        {"id", id},
+        {"payload", SerializeRequest(req)}
+    }.dump();
 }
 
-WsConnection::WsConnection(const WsLinkOptions& opts)
-    : _opts(opts),
-      _work(make_work_guard(_ioc)),
-      _thread([this] { _ioc.run(); }),
-      _reconnectTimer(_ioc) {
+WsConnection::WsConnection(const WsLinkOptions& opts) : _opts(opts), _reconnectTimer(AsioContext::Get()) {
     try {
         _url = ParseWsUrl(_opts.url);
     } catch (...) {
@@ -38,22 +40,33 @@ WsConnection::WsConnection(const WsLinkOptions& opts)
 }
 
 WsConnection::~WsConnection() {
-    _stopping = true;
-    post(_ioc, [this]() {
-        _reconnectTimer.cancel();
-        for (auto& sub : _subs | views::values)
-            sub.subscriber.on_completed();
-        _subs.clear();
-        if (_plainWs || _tlsWs) WithWs([](auto& ws) {
-            beast::get_lowest_layer(ws).close();
-        });
+    Stop();
+}
+
+void WsConnection::Stop() {
+    if (_stopping.exchange(true)) return;
+    if (AsioContext::OnContext()) return Cleanup();
+
+    promise<void> done;
+    post(AsioContext::Get(), [this, &done]() {
+        Cleanup();
+        post(AsioContext::Get(), [&done]() { done.set_value(); });
     });
-    _work.reset();
-    if (_thread.joinable()) _thread.join();
+    done.get_future().get();
+}
+
+void WsConnection::Cleanup() {
+    _reconnectTimer.cancel();
+    for (auto& sub : _subs | views::values)
+        sub.subscriber.on_completed();
+    _subs.clear();
+    if (_plainWs || _tlsWs) WithWs([](auto& ws) {
+        beast::get_lowest_layer(ws).close();
+    });
 }
 
 void WsConnection::Subscribe(const string& id, const GraphQLRequest& req, const subscriber<GraphQLResult>& sub) {
-    post(_ioc, [self = shared_from_this(), id, req, sub]() mutable {
+    post(AsioContext::Get(), [self = shared_from_this(), id, req, sub]() mutable {
         if (self->_initError) {
             sub.on_error(self->_initError);
             return;
@@ -69,7 +82,7 @@ void WsConnection::Subscribe(const string& id, const GraphQLRequest& req, const 
 }
 
 void WsConnection::Unsubscribe(const string& id) {
-    post(_ioc, [self = shared_from_this(), id]() {
+    post(AsioContext::Get(), [self = shared_from_this(), id]() {
         if (auto it = self->_subs.find(id); it != self->_subs.end()) {
             if (self->_state == State::Connected) self->EnqueueWrite(json {{"type", "complete"}, {"id", id}}.dump());
             self->_subs.erase(it);
@@ -86,18 +99,24 @@ void WsConnection::CreateStream() {
         _sslCtx = make_unique<ssl::context>(ssl::context::tlsv13_client);
         _sslCtx->set_default_verify_paths();
         _sslCtx->set_verify_mode(ssl::verify_peer);
-        _tlsWs = make_unique<TlsWs>(_ioc, *_sslCtx);
+        _tlsWs = make_unique<TlsWs>(AsioContext::Get(), *_sslCtx);
     } else {
-        _plainWs = make_unique<PlainWs>(_ioc);
+        _plainWs = make_unique<PlainWs>(AsioContext::Get());
     }
 }
 
 void WsConnection::DoConnect() {
     _state = State::Connecting;
     CreateStream();
-    beast::error_code ec;
-    tcp::resolver resolver {_ioc};
-    auto endpoints = resolver.resolve(_url.host, _url.port, ec);
+    auto resolver = make_shared<tcp::resolver>(AsioContext::Get());
+    resolver->async_resolve(
+        _url.host, _url.port,
+        [self = shared_from_this(), resolver](beast::error_code ec, tcp::resolver::results_type endpoints) {
+            self->OnResolved(ec, std::move(endpoints));
+        });
+}
+
+void WsConnection::OnResolved(beast::error_code ec, tcp::resolver::results_type endpoints) {
     if (ec) {
         ScheduleReconnect();
         return;
@@ -202,7 +221,7 @@ void WsConnection::Dispatch(const json& msg) {
 // ─── Write ────────────────────────────────────────────────────────────────────
 
 void WsConnection::SendSubscribe(const string& id) {
-    EnqueueWrite(MakeSubscribe(id, _subs.at(id).request));
+    EnqueueWrite(::Subscribe(id, _subs.at(id).request));
 }
 
 void WsConnection::EnqueueWrite(const string& msg) {

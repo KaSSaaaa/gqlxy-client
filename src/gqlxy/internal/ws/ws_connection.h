@@ -4,8 +4,6 @@
 #include <gqlxy/internal/url.h>
 #include <gqlxy/links/ws_link.h>
 
-#include <boost/asio/executor_work_guard.hpp>
-#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/context.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -20,7 +18,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <thread>
 
 namespace gqlxy::internal {
 
@@ -30,7 +27,7 @@ struct WsSubscription {
 };
 
 // Manages a single persistent WebSocket connection for a WsLink instance.
-// All internal state is accessed exclusively from the io_context thread.
+// All internal state is accessed exclusively from the shared AsioContext thread.
 // Public methods (subscribe/unsubscribe) are thread-safe via asio::post.
 class WsConnection : public std::enable_shared_from_this<WsConnection> {
 public:
@@ -39,6 +36,7 @@ public:
 
     void Subscribe(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResult>& sub);
     void Unsubscribe(const std::string& id);
+    void Stop();
 
 private:
     enum class State {
@@ -54,10 +52,6 @@ private:
     WsLinkOptions _opts;
     ParsedUrl _url;
     std::exception_ptr _initError;
-
-    boost::asio::io_context _ioc;
-    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> _work;
-    std::thread _thread;
 
     std::unique_ptr<boost::asio::ssl::context> _sslCtx;
     std::unique_ptr<PlainWs> _plainWs;
@@ -76,6 +70,7 @@ private:
     std::atomic<bool> _stopping {false};
 
     void DoConnect();
+    void OnResolved(boost::beast::error_code ec, boost::asio::ip::tcp::resolver::results_type endpoints);
     void CreateStream();
     void OnTcpConnected(boost::beast::error_code ec);
     void OnSslHandshake(boost::beast::error_code ec);
@@ -92,6 +87,7 @@ private:
     void FailAll(std::exception_ptr ex);
     void ScheduleReconnect();
     void ReplaySubscriptions();
+    void Cleanup();
 
     template<typename F>
     auto WithWs(F&& fn) {

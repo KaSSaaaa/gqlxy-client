@@ -1,18 +1,22 @@
 #include <gqlxy/links/http_link.h>
 
+#include <gqlxy/internal/asio_context.h>
 #include <gqlxy/internal/http/response.h>
 #include <gqlxy/internal/http/serialization.h>
 #include <gqlxy/internal/url.h>
 
+#include <boost/asio/co_spawn.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/redirect_error.hpp>
 #include <boost/asio/ssl/context.hpp>
+#include <boost/asio/this_coro.hpp>
+#include <boost/asio/use_awaitable.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/ssl.hpp>
 #include <openssl/ssl.h>
 
 #include <map>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -26,9 +30,11 @@ using namespace boost::beast;
 using namespace rxcpp;
 
 template<typename Stream>
-vector<GraphQLResult> SendAndReceive(
-    Stream& stream, const string& host, const string& target, const string& body_str,
-    const map<string, string>& extra_headers) {
+awaitable<vector<GraphQLResult>> SendAndReceive(Stream& stream,
+                                                const string& host,
+                                                const string& target,
+                                                const string& body_str,
+                                                const map<string, string>& extra_headers) {
     http::request<http::string_body> req {http::verb::post, target, 11};
     req.set(http::field::host, host);
     req.set(http::field::content_type, "application/json");
@@ -39,61 +45,66 @@ vector<GraphQLResult> SendAndReceive(
     req.body() = body_str;
     req.prepare_payload();
 
-    http::write(stream, req);
+    co_await http::async_write(stream, req, use_awaitable);
 
     flat_buffer buf;
     http::response<http::string_body> res;
-    http::read(stream, buf, res);
+    co_await http::async_read(stream, buf, res, use_awaitable);
 
-    if (const auto status = res.result_int(); status >= 400) return {MapHttpError(status, res.reason())};
+    if (const auto status = res.result(); status >= http::status::bad_request)
+        co_return vector {MapHttpError(status, res.reason())};
 
-    if (res[http::field::content_type].find("text/event-stream") != string::npos) return ParseSseBody(res.body());
+    if (res[http::field::content_type].find("text/event-stream") != string::npos)
+        co_return ParseSseBody(res.body());
 
-    return {ParseJsonResponse(res.body())};
+    co_return vector {ParseJsonResponse(res.body())};
 }
 
-vector<GraphQLResult> DoPlain(const ParsedUrl& url, const string& body_str, const map<string, string>& headers) {
-    io_context ioc;
-    tcp_stream stream {ioc};
-    stream.connect(tcp::resolver {ioc}.resolve(url.host, url.port));
-    auto results = SendAndReceive(stream, url.host, url.target, body_str, headers);
+awaitable<vector<GraphQLResult>> Send(const ParsedUrl& url, const string& body, const map<string, string>& headers) {
+    auto ex = co_await this_coro::executor;
+    tcp_stream stream(ex);
+    co_await stream.async_connect(co_await tcp::resolver(ex).async_resolve(url.host, url.port, use_awaitable), use_awaitable);
+
+    auto results = co_await SendAndReceive(stream, url.host, url.target, body, headers);
     beast::error_code ec;
     stream.socket().shutdown(tcp::socket::shutdown_both, ec);
-    return results;
+    co_return results;
 }
 
-vector<GraphQLResult> DoTls(const ParsedUrl& url, const string& body_str, const map<string, string>& headers) {
-    io_context ioc;
+awaitable<vector<GraphQLResult>> SendSecured(const ParsedUrl& url, const string& body, const map<string, string>& headers) {
+    auto ex = co_await this_coro::executor;
     ssl::context ctx {ssl::context::tlsv13_client};
     ctx.set_default_verify_paths();
     ctx.set_verify_mode(ssl::verify_peer);
 
-    ssl_stream<tcp_stream> stream {ioc, ctx};
+    ssl_stream<tcp_stream> stream {ex, ctx};
     SSL_set_tlsext_host_name(stream.native_handle(), url.host.c_str());
-    get_lowest_layer(stream).connect(tcp::resolver {ioc}.resolve(url.host, url.port));
-    stream.handshake(ssl::stream_base::client);
 
-    auto results = SendAndReceive(stream, url.host, url.target, body_str, headers);
+    co_await get_lowest_layer(stream).async_connect(co_await tcp::resolver(ex).async_resolve(url.host, url.port, use_awaitable), use_awaitable);
+    co_await stream.async_handshake(ssl::stream_base::client, use_awaitable);
+
+    auto results = co_await SendAndReceive(stream, url.host, url.target, body, headers);
     beast::error_code ec;
-    stream.shutdown(ec);
-    return results;
+    co_await stream.async_shutdown(redirect_error(use_awaitable, ec));
+    co_return results;
+}
+
+awaitable<vector<GraphQLResult>> HttpRequest(const HttpLinkOptions& opts, const GraphQLRequest& req) {
+    const auto url = ParseHttpUrl(opts.url);
+    const auto body = SerializeRequest(req).dump();
+    co_return co_await (url.tls ? SendSecured(url, body, opts.headers) : Send(url, body, opts.headers));
 }
 
 HttpLink::HttpLink(const HttpLinkOptions& options) : _options(options) {}
 
 Observable<GraphQLResult> HttpLink::Execute(const GraphQLRequest& request) {
-    return observable<>::create<GraphQLResult>([opts = _options, req = request](const auto& s) {
-        try {
-            const auto url = ParseHttpUrl(opts.url);
-            const auto body = SerializeRequest(req).dump();
-            auto results = url.tls ? DoTls(url, body, opts.headers) : DoPlain(url, body, opts.headers);
-            for (auto& r : results) {
-                if (!s.is_subscribed()) break;
-                s.on_next(std::move(r));
-            }
-            s.on_completed();
-        } catch (...) {
-            s.on_error(current_exception());
-        }
+    return observable<>::create<GraphQLResult>([opts = _options, request](const auto& subscription) {
+        co_spawn(AsioContext::Get(), HttpRequest(opts, request), [subscription](auto exception, auto results) {
+            if (!subscription.is_subscribed()) return;
+            if (exception) return subscription.on_error(exception);
+            for (const auto& result : results)
+                subscription.on_next(result);
+            subscription.on_completed();
+        });
     });
 }

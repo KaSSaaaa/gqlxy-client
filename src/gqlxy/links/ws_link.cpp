@@ -13,6 +13,10 @@ WsLink::WsLink(const WsLinkOptions& options)
     : _options(std::move(options)),
       _connection(make_shared<internal::WsConnection>(_options)) {}
 
+WsLink::~WsLink() {
+    _connection->Stop();
+}
+
 Observable<GraphQLResult> WsLink::Execute(const GraphQLRequest& request) {
     return observable<>::create<GraphQLResult>([conn = _connection, req = request](const auto& s) {
         const auto id = boost::uuids::to_string(boost::uuids::random_generator()());
