@@ -18,8 +18,6 @@ using namespace testing;
 using namespace gqlxy;
 using namespace gqlxy::e2e;
 
-// ─── Link params ──────────────────────────────────────────────────────────────
-
 struct LinkParam {
     string name;
     function<Client()> factory;
@@ -53,8 +51,6 @@ static const LinkParam SplitParam {
     }
 };
 // clang-format on
-
-// ─── Query / mutation tests (Http, Ws, Split) ─────────────────────────────────
 
 class LinkTest : public TestWithParam<LinkParam> {
 protected:
@@ -121,8 +117,6 @@ INSTANTIATE_TEST_SUITE_P(
     Values(HttpParam, WsParam, SplitParam),
     [](const TestParamInfo<LinkParam>& info) { return info.param.name; });
 
-// ─── Subscription event-count tests (Http, Ws, Split × 0, 3, 5) ──────────────
-
 class CountTest : public TestWithParam<tuple<LinkParam, int>> {
 protected:
     optional<Client> _client;
@@ -154,8 +148,6 @@ INSTANTIATE_TEST_SUITE_P(
         return get<0>(info.param).name + "_" + to_string(get<1>(info.param));
     });
 
-// ─── Custom header forwarding ─────────────────────────────────────────────────
-
 TEST(HttpLinkTest, CustomHeadersForwarded) {
     Client client({.link = make_shared<HttpLink>(HttpLinkOptions{
         .url = ServerUrl,
@@ -180,11 +172,6 @@ TEST(SseTest, CustomHeadersForwarded) {
     ASSERT_EQ(out.values.size(), 2u);
     EXPECT_TRUE(out.completed);
 }
-
-// ─── Blocking / concurrency (HttpLink only) ───────────────────────────────────
-//
-// HttpLink uses synchronous Boost.Beast I/O per request: two sequential
-// subscriptions take ≥ slow+fast, while two parallel ones overlap ≈ max(slow, fast).
 
 class BlockingTest : public Test {
 protected:
@@ -240,10 +227,6 @@ TEST_F(BlockingTest, ParallelRequestsOverlap) {
     EXPECT_EQ(slow.values[0].data.value()["delay"], "delayed 100ms");
     EXPECT_LT(total, DelayMs + Margin);
 }
-
-// ─── WebSocket persistence (WsLink only) ─────────────────────────────────────
-//
-// All requests within a single fixture instance share one WsConnection.
 
 class WsLinkPersistenceTest : public Test {
 protected:

@@ -6,8 +6,6 @@
 
 namespace gqlxy::internal {
 
-// Singleton io_context running on a background thread.
-// Shared by all link implementations that need async I/O.
 class AsioContext {
 public:
     static boost::asio::io_context& Get() {

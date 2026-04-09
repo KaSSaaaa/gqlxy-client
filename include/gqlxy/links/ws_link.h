@@ -2,6 +2,7 @@
 
 #include <gqlxy/link.h>
 
+#include <boost/uuid/random_generator.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -27,6 +28,7 @@ public:
 private:
     WsLinkOptions _options;
     std::shared_ptr<internal::WsConnection> _connection;
+    boost::uuids::random_generator _uuidGenerator;
 };
 
 }

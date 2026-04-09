@@ -10,7 +10,6 @@
 using namespace std;
 using namespace gqlxy;
 
-// co_await style: Task<T> is the coroutine return type; Observable<T> is awaitable inside it.
 Task<int> run(Client& client) {
     auto result = co_await client.Query(R"( query { __typename } )");
 
@@ -36,17 +35,14 @@ int main() {
     });
     // clang-format on
 
-    // Coroutine style — run() uses co_await internally, .get() resolves synchronously here
     run(client).get();
 
-    // Subscribe style — query
     client.Query(R"( query { __typename } )")
         .subscribe(
             [](const GraphQLResult& r) { cout << r.data->dump(2) << endl; },
             [](exception_ptr) { cerr << "Query error" << endl; }
         );
 
-    // Subscribe style — subscription (streams until unsubscribed)
     auto sub = client.Subscribe(R"( subscription { onMessage { text } } )")
         .subscribe(
             [](const GraphQLResult& r) { cout << r.data->dump(2) << endl; },

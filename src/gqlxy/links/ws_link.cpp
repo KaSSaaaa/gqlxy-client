@@ -8,9 +8,10 @@
 using namespace std;
 using namespace gqlxy;
 using namespace rxcpp;
+using namespace boost;
 
 WsLink::WsLink(const WsLinkOptions& options)
-    : _options(std::move(options)),
+    : _options(options),
       _connection(make_shared<internal::WsConnection>(_options)) {}
 
 WsLink::~WsLink() {
@@ -18,8 +19,8 @@ WsLink::~WsLink() {
 }
 
 Observable<GraphQLResult> WsLink::Execute(const GraphQLRequest& request) {
-    return observable<>::create<GraphQLResult>([conn = _connection, req = request](const auto& s) {
-        const auto id = boost::uuids::to_string(boost::uuids::random_generator()());
+    return observable<>::create<GraphQLResult>([conn = _connection, req = request, this](const auto& s) {
+        const auto id = uuids::to_string(_uuidGenerator());
         s.add([conn, id]() { conn->Unsubscribe(id); });
         conn->Subscribe(id, req, s);
     });

@@ -15,17 +15,12 @@ using namespace std;
 using namespace gqlxy;
 using json = nlohmann::json;
 
-// ─── URL helpers ─────────────────────────────────────────────────────────────
-
 static string ToWsUrl(const string& url) {
     if (url.starts_with("https://")) return "wss://" + url.substr(8);
     if (url.starts_with("http://")) return "ws://" + url.substr(7);
     return url;
 }
 
-// ─── Input parsing ────────────────────────────────────────────────────────────
-
-// Accepts plain GraphQL or {"query":"...","variables":{...},"operationName":"..."}
 static GraphQLRequest ParseInput(const string& text) {
     if (!text.empty() && text.front() == '{') {
         try {
@@ -44,8 +39,6 @@ static GraphQLRequest ParseInput(const string& text) {
     return {.query = text};
 }
 
-// ─── Operation type detection ─────────────────────────────────────────────────
-
 static OperationType DetectOp(const string& query) {
     const auto s = query.find_first_not_of(" \t\n\r");
     if (s == string::npos) return OperationType::Query;
@@ -53,8 +46,6 @@ static OperationType DetectOp(const string& query) {
     if (query.compare(s, 8, "mutation") == 0) return OperationType::Mutation;
     return OperationType::Query;
 }
-
-// ─── Execute & print ──────────────────────────────────────────────────────────
 
 static void PrintResult(const GraphQLResult& r) {
     if (r.data) cout << r.data->dump(2) << "\n";
@@ -83,9 +74,6 @@ static void Execute(Client& client, const GraphQLRequest& req) {
     done.get_future().get();
 }
 
-// ─── REPL input ───────────────────────────────────────────────────────────────
-
-// Reads lines until a blank line or EOF. Returns nullopt on EOF with no content.
 static optional<string> ReadOperation(bool tty) {
     string result;
     string line;
@@ -105,8 +93,6 @@ static optional<string> ReadOperation(bool tty) {
 
     return result.empty() ? nullopt : optional(result);
 }
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 int main(int argc, char* argv[]) {
     string url = "http://localhost:4000/graphql";

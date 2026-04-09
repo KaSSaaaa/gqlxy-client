@@ -6,8 +6,6 @@ using namespace std;
 using namespace testing;
 using namespace gqlxy;
 
-// ─── Parameterized: every bad URL must emit an exception ─────────────────────
-
 class HttpLinkErrorTest : public TestWithParam<string> {};
 
 TEST_P(HttpLinkErrorTest, EmitsException) {
@@ -22,8 +20,6 @@ INSTANTIATE_TEST_SUITE_P(BadUrls, HttpLinkErrorTest, Values(
     "ftp://example.com/graphql",
     "http://localhost:19999/graphql"
 ));
-
-// ─── Construction ─────────────────────────────────────────────────────────────
 
 class HttpLinkTest : public Test {};
 
