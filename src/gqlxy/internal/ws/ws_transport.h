@@ -9,6 +9,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace gqlxy::internal {
@@ -21,7 +22,9 @@ struct WsTransportCallbacks {
 
 class WsTransport : public std::enable_shared_from_this<WsTransport> {
 public:
-    WsTransport(const ParsedUrl& url, const std::map<std::string, std::string>& headers, const WsTransportCallbacks& cbs);
+    WsTransport(
+        const ParsedUrl& url, const std::map<std::string, std::string>& headers,
+        const WsTransportCallbacks& cbs, const std::optional<std::string>& caCert = std::nullopt);
 
     void Connect();
     void Send(const std::string& msg);
@@ -31,6 +34,7 @@ private:
     ParsedUrl _url;
     std::map<std::string, std::string> _headers;
     WsTransportCallbacks _cbs;
+    std::optional<std::string> _caCert;
 
     std::shared_ptr<IWsStream> _stream;
     boost::beast::flat_buffer _readBuf;

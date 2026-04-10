@@ -3,14 +3,12 @@
 #include "ws_stream_base.h"
 
 #include <boost/beast/core/tcp_stream.hpp>
-#include <boost/beast/websocket.hpp>
 
 namespace gqlxy::internal {
 
 class WsStream : public WsStreamBase<boost::beast::tcp_stream> {
 public:
-    WsStream(
-        const ParsedUrl& url, const std::map<std::string, std::string>& headers, const WsTransportCallbacks& callbacks);
+    WsStream(const ParsedUrl& url, const std::map<std::string, std::string>& headers);
 };
 
 }

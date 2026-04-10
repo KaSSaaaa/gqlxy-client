@@ -16,7 +16,15 @@
   "features": {
     "tests": {
       "description": "Build and run the test suite",
-      "dependencies": ["gtest", "cppgraphqlgen", "pegtl", "better-enums", "oatpp", "oatpp-websocket"]
+      "dependencies": [
+        "gtest",
+        "cppgraphqlgen",
+        "pegtl",
+        "better-enums",
+        "oatpp",
+        "oatpp-websocket",
+        "oatpp-openssl"
+      ]
     }
   }
 }

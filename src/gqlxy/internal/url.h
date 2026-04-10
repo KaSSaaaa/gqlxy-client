@@ -3,7 +3,6 @@
 #include <boost/url.hpp>
 
 #include <ranges>
-#include <stdexcept>
 #include <string>
 #include <vector>
 

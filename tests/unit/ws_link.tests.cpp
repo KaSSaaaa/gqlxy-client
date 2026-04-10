@@ -19,7 +19,8 @@ INSTANTIATE_TEST_SUITE_P(BadUrls, WsLinkErrorTest, Values(
     "not-a-url",
     "ftp://example.com/graphql",
     "http://localhost:19999/graphql",
-    "ws://localhost:19999/graphql"
+    "ws://localhost:19999/graphql",
+    "wss://localhost:19999/graphql"
 ));
 
 class WsLinkTest : public Test {};

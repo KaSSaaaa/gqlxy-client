@@ -14,8 +14,11 @@ using namespace boost::beast;
 using namespace boost::beast::http;
 namespace beast = boost::beast;
 
-HttpsStream::HttpsStream(const any_io_executor& ex) : _ctx(ssl::context::tlsv13_client), _stream(ex, _ctx) {
-    _ctx.set_default_verify_paths();
+HttpsStream::HttpsStream(const any_io_executor& ex, const optional<string>& caCert)
+    : _ctx(ssl::context::tlsv13_client),
+      _stream(ex, _ctx) {
+    if (caCert) _ctx.add_certificate_authority(buffer(*caCert));
+    else _ctx.set_default_verify_paths();
     _ctx.set_verify_mode(ssl::verify_peer);
 }
 

@@ -53,7 +53,7 @@ awaitable<vector<GraphQLResult>> HttpRequest(const HttpLinkOptions& opts, const 
     const auto body = SerializeRequest(req).dump();
 
     auto executor = co_await net::this_coro::executor;
-    auto stream = url.tls ? static_pointer_cast<IHttpStream>(make_shared<HttpsStream>(executor))
+    auto stream = url.tls ? static_pointer_cast<IHttpStream>(make_shared<HttpsStream>(executor, opts.caCert))
                           : make_shared<HttpStream>(executor);
 
     co_await stream->Connect(url.host, url.port);

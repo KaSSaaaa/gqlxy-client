@@ -1,7 +1,6 @@
 #pragma once
 #include "gqlxy/internal/url.h"
 #include "i_ws_stream.h"
-#include "ws_transport.h"
 
 #include <boost/beast/websocket.hpp>
 #include <map>
@@ -16,7 +15,7 @@ public:
         const ConnectCallback& callback) override {
         _lowWs.expires_after(timeout);
         _lowWs.async_connect(endpoints, [callback, this](const auto& ec, const auto&) {
-            if (ec) return _callbacks.onDisconnected();
+            if (ec) return callback(ec);
             Handshake(callback);
         });
     }
@@ -35,11 +34,10 @@ public:
 
 protected:
     WsStreamBase(
-        const ParsedUrl& url, const std::map<std::string, std::string>& headers, const WsTransportCallbacks& callbacks,
+        const ParsedUrl& url, const std::map<std::string, std::string>& headers,
         boost::beast::websocket::stream<Stream> ws)
         : _url(url),
           _headers(headers),
-          _callbacks(callbacks),
           _ws(std::move(ws)),
           _lowWs(boost::beast::get_lowest_layer(_ws)) {}
 
@@ -49,16 +47,13 @@ protected:
             for (const auto& [k, v] : _headers)
                 req.set(k, v);
         }));
-        _ws.async_handshake(_url.host, _url.target, [callback, this](const auto& ec) {
-            if (ec) return _callbacks.onDisconnected();
-            _callbacks.onConnected();
-            callback({});
+        _ws.async_handshake(_url.host, _url.target, [callback](const auto& ec) {
+            callback(ec);
         });
     }
 
     ParsedUrl _url;
     std::map<std::string, std::string> _headers;
-    WsTransportCallbacks _callbacks;
     boost::beast::websocket::stream<Stream> _ws;
     boost::beast::lowest_layer_type<boost::beast::websocket::stream<Stream>>& _lowWs;
 };

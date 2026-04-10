@@ -19,48 +19,52 @@ struct WsSubscription {
     rxcpp::subscriber<GraphQLResult> subscriber;
 };
 
-class IConnectionState;
 class WsTransport;
+
+enum class ConnectionState {
+    Idle,
+    Connecting,
+    Connected,
+    Reconnecting
+};
 
 class WsConnectionContext : public std::enable_shared_from_this<WsConnectionContext> {
 public:
     explicit WsConnectionContext(const WsLinkOptions& opts);
     ~WsConnectionContext();
 
+    void Subscribe(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResult>& sub);
+    void Unsubscribe(const std::string& id);
+    void Stop();
+
+private:
+    void OnSubscribe(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResult>& sub);
+    void OnUnsubscribe(const std::string& id);
+    void OnTransportConnected();
+    void OnTransportMessage(const std::string& raw);
+    void OnTransportDisconnected();
+    void TransitionTo(ConnectionState state);
+
     void AddSub(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResult>& sub);
     void RemoveSub(const std::string& id);
     bool HasSubs() const;
     void ReplaySubs();
     void FailAll(const std::exception_ptr& ex);
+    void CompleteSub(const std::string& id);
 
-    void Connect();
+    void ConnectTransport();
     void Send(const nlohmann::json& msg);
     void SendSubscribe(const std::string& id, const GraphQLRequest& req);
-    void ResetTransport();
     void Dispatch(const std::string& raw);
-
-    void SetConnected();
-    bool IsEverConnected() const;
-    std::string GetUrl() const;
 
     void ScheduleReconnect();
     void CancelReconnect();
 
-    void SetState(std::unique_ptr<IConnectionState> next);
+    void StopOnContext();
 
-    void DispatchSubscribe(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResult>& sub);
-    void DispatchUnsubscribe(const std::string& id);
-
-    void Stop();
-    bool IsStopping() const;
-    std::exception_ptr InitError() const;
-
-private:
-    void CompleteSub(const std::string& id);
-
+    ConnectionState _state = ConnectionState::Idle;
     std::map<std::string, WsSubscription> _subs;
     std::shared_ptr<WsTransport> _transport;
-    std::unique_ptr<IConnectionState> _state;
     boost::asio::steady_timer _reconnectTimer;
     int _reconnectAttempt {0};
     bool _everConnected {false};

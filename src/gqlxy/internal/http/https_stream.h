@@ -5,11 +5,14 @@
 #include <boost/beast/core/tcp_stream.hpp>
 #include <boost/beast/ssl/ssl_stream.hpp>
 
+#include <optional>
+#include <string>
+
 namespace gqlxy::internal {
 
 class HttpsStream : public IHttpStream {
 public:
-    HttpsStream(const boost::asio::any_io_executor& ex);
+    HttpsStream(const boost::asio::any_io_executor& ex, const std::optional<std::string>& caCert = std::nullopt);
 
     boost::asio::awaitable<void> Connect(const std::string& host, const std::string& port) override;
     boost::asio::awaitable<void> Write(const boost::beast::http::request<boost::beast::http::string_body>& req) override;

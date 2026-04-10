@@ -1,8 +1,7 @@
 #include <gqlxy/links/ws_link.h>
 
-#include <gqlxy/internal/ws/ws_connection.h>
+#include <gqlxy/internal/ws/connection/ws_connection_context.h>
 
-#include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
 using namespace std;
@@ -12,7 +11,7 @@ using namespace boost;
 
 WsLink::WsLink(const WsLinkOptions& options)
     : _options(options),
-      _connection(make_shared<internal::WsConnection>(_options)) {}
+      _connection(make_shared<internal::WsConnectionContext>(_options)) {}
 
 WsLink::~WsLink() {
     _connection->Stop();

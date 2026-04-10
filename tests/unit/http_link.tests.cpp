@@ -18,7 +18,8 @@ TEST_P(HttpLinkErrorTest, EmitsException) {
 INSTANTIATE_TEST_SUITE_P(BadUrls, HttpLinkErrorTest, Values(
     "not-a-url",
     "ftp://example.com/graphql",
-    "http://localhost:19999/graphql"
+    "http://localhost:19999/graphql",
+    "https://localhost:19999/graphql"
 ));
 
 class HttpLinkTest : public Test {};

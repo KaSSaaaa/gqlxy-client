@@ -2,6 +2,7 @@
 
 #include <gqlxy/link.h>
 #include <map>
+#include <optional>
 #include <string>
 
 namespace gqlxy {
@@ -9,6 +10,7 @@ namespace gqlxy {
 struct HttpLinkOptions {
     std::string url;
     std::map<std::string, std::string> headers;
+    std::optional<std::string> caCert;
 };
 
 class HttpLink : public Link {

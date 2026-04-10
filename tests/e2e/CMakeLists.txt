@@ -6,6 +6,9 @@ target_link_libraries(gqlxy_client_e2e_tests PRIVATE
   gqlxy_standalone_server
   nlohmann_json::nlohmann_json
   GTest::gtest
+  Boost::beast
+  OpenSSL::SSL
+  OpenSSL::Crypto
 )
 target_include_directories(gqlxy_client_e2e_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/include

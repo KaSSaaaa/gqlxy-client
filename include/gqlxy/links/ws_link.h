@@ -5,10 +5,11 @@
 #include <boost/uuid/random_generator.hpp>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace gqlxy::internal {
-    class WsConnection;
+    class WsConnectionContext;
 }
 
 namespace gqlxy {
@@ -16,6 +17,7 @@ namespace gqlxy {
 struct WsLinkOptions {
     std::string url;
     std::map<std::string, std::string> headers;
+    std::optional<std::string> caCert;
 };
 
 class WsLink : public Link {
@@ -27,7 +29,7 @@ public:
 
 private:
     WsLinkOptions _options;
-    std::shared_ptr<internal::WsConnection> _connection;
+    std::shared_ptr<internal::WsConnectionContext> _connection;
     boost::uuids::random_generator _uuidGenerator;
 };
 

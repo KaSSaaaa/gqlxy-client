@@ -13,10 +13,13 @@ namespace beast = boost::beast;
 using namespace boost::beast::websocket;
 using tcp = net::ip::tcp;
 
-WsTransport::WsTransport(const ParsedUrl& url, const map<string, string>& headers, const WsTransportCallbacks& cbs)
+WsTransport::WsTransport(
+    const ParsedUrl& url, const map<string, string>& headers,
+    const WsTransportCallbacks& cbs, const optional<string>& caCert)
     : _url(url),
       _headers(headers),
-      _cbs(cbs) {}
+      _cbs(cbs),
+      _caCert(caCert) {}
 
 void WsTransport::Connect() {
     CreateStream();
@@ -47,19 +50,15 @@ void WsTransport::FireDisconnected() {
 
 void WsTransport::CreateStream() {
     _headers["Sec-WebSocket-Protocol"] = "graphql-transport-ws";
-    auto callbacks = WsTransportCallbacks {
-        .onConnected = _cbs.onConnected,
-        .onMessage = _cbs.onMessage,
-        .onDisconnected = [this]() { FireDisconnected(); },
-    };
-    _stream = _url.tls ? static_pointer_cast<IWsStream>(make_shared<WssStream>(_url, _headers, callbacks))
-                       : make_shared<WsStream>(_url, _headers, callbacks);
+    _stream = _url.tls ? static_pointer_cast<IWsStream>(make_shared<WssStream>(_url, _headers, _caCert))
+                       : make_shared<WsStream>(_url, _headers);
 }
 
 void WsTransport::OnResolved(const beast::error_code& ec, const tcp::resolver::results_type& endpoints) {
     if (ec) return FireDisconnected();
     _stream->Connect(endpoints, seconds(30), [self = shared_from_this()](const auto& error) {
         if (error) return self->FireDisconnected();
+        self->_cbs.onConnected();
         self->Read();
     });
 }

@@ -44,9 +44,9 @@ The public surface lives entirely in `include/gqlxy/`:
 
 Internal implementation lives in `src/gqlxy/`. boost::beast is a PRIVATE dependency (not exposed in public headers). rxcpp is PUBLIC (appears in `Link` and `Client` signatures).
 
-**Internal: `AsioContext`** (`src/gqlxy/internal/asio_context.h`) — singleton `io_context` running on a background thread, shared by all link implementations. `AsioContext::OnContext()` returns `true` when called from that thread (used by `WsConnection` destructor to avoid deadlocks).
+**Internal: `AsioContext`** (`src/gqlxy/internal/asio_context.h`) — singleton `io_context` running on a background thread, shared by all link implementations. `AsioContext::OnContext()` returns `true` when called from that thread (used by `WsConnectionContext::Stop()` to avoid deadlocks).
 
-**Internal: WS state machine** — `WsConnection` delegates to `WsConnectionContext`, which drives states in `src/gqlxy/internal/ws/connection/state/`: `IdleState` → `ConnectingState` → `ConnectedState` ↔ `ReconnectingState`. Each state implements `IConnectionState`.
+**Internal: WS connection** — `WsConnectionContext` (`src/gqlxy/internal/ws/connection/`) manages the WebSocket lifecycle with an `enum class ConnectionState { Idle, Connecting, Connected, Reconnecting }` and switch-based dispatch. Public methods (`Subscribe`, `Unsubscribe`, `Stop`) post to the ASIO thread; all state logic runs on that thread. `WsTransport` handles the actual TCP/TLS + WebSocket I/O.
 
 ## Key Conventions
 

@@ -28,14 +28,26 @@ struct LinkParam {
 };
 
 // clang-format off
+static const auto TestCaCert = std::string(CaCert);
+
 static const LinkParam HttpParam {
     "Http",
     [] { return Client({.link = make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl})}); }
 };
 
+static const LinkParam HttpsParam {
+    "Https",
+    [] { return Client({.link = make_shared<HttpLink>(HttpLinkOptions{.url = HttpsServerUrl, .caCert = TestCaCert})}); }
+};
+
 static const LinkParam WsParam {
     "Ws",
     [] { return Client({.link = make_shared<WsLink>(WsLinkOptions{.url = WsServerUrl})}); }
+};
+
+static const LinkParam WssParam {
+    "Wss",
+    [] { return Client({.link = make_shared<WsLink>(WsLinkOptions{.url = WssServerUrl, .caCert = TestCaCert})}); }
 };
 
 static const LinkParam SplitParam {
@@ -46,6 +58,19 @@ static const LinkParam SplitParam {
                 [](const GraphQLRequest& req) { return req.type != OperationType::Subscription; },
                 make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl}),
                 make_shared<WsLink>(WsLinkOptions{.url = WsServerUrl})
+            )
+        });
+    }
+};
+
+static const LinkParam SplitSslParam {
+    "SplitSsl",
+    [] {
+        return Client({
+            .link = make_shared<SplitLink>(
+                [](const GraphQLRequest& req) { return req.type != OperationType::Subscription; },
+                make_shared<HttpLink>(HttpLinkOptions{.url = HttpsServerUrl, .caCert = TestCaCert}),
+                make_shared<WsLink>(WsLinkOptions{.url = WssServerUrl, .caCert = TestCaCert})
             )
         });
     }
@@ -114,7 +139,7 @@ TEST_P(LinkTest, GraphQLErrorPropagated) {
 
 INSTANTIATE_TEST_SUITE_P(
     Links, LinkTest,
-    Values(HttpParam, WsParam, SplitParam),
+    Values(HttpParam, HttpsParam, WsParam, WssParam, SplitParam, SplitSslParam),
     [](const TestParamInfo<LinkParam>& info) { return info.param.name; });
 
 class CountTest : public TestWithParam<tuple<LinkParam, int>> {
@@ -143,7 +168,7 @@ TEST_P(CountTest, ReceivesExactCountAndCompletes) {
 
 INSTANTIATE_TEST_SUITE_P(
     LinkXCount, CountTest,
-    Combine(Values(HttpParam, WsParam, SplitParam), Values(0, 3, 5)),
+    Combine(Values(HttpParam, HttpsParam, WsParam, WssParam, SplitParam, SplitSslParam), Values(0, 3, 5)),
     [](const TestParamInfo<tuple<LinkParam, int>>& info) {
         return get<0>(info.param).name + "_" + to_string(get<1>(info.param));
     });
@@ -260,4 +285,61 @@ TEST_F(WsLinkPersistenceTest, ConcurrentSubscriptions) {
     ASSERT_FALSE(sub_out.exception);
     ASSERT_EQ(sub_out.values.size(), 3u);
     EXPECT_TRUE(sub_out.completed);
+}
+
+TEST(HttpsLinkTest, CustomHeadersForwarded) {
+    Client client({
+        .link = make_shared<HttpLink>(HttpLinkOptions{
+            .url = HttpsServerUrl,
+            .headers = {{"x-client-name", "gqlxy-ssl-test"}},
+            .caCert = TestCaCert,
+        })
+    });
+    auto out = to_result(client.Query("{ hello }"));
+    ASSERT_GQL_SUCCESS(out);
+    EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
+}
+
+class WssLinkPersistenceTest : public Test {
+protected:
+    Client _client {
+        Client({
+            .link = make_shared<WsLink>(WsLinkOptions {
+                .url = WssServerUrl,
+                .caCert = TestCaCert,
+            })
+        })
+    };
+};
+
+TEST_F(WssLinkPersistenceTest, ConnectionReused) {
+    for (int i = 0; i < 3; ++i) {
+        auto out = to_result(_client.Query("{ hello }"));
+        ASSERT_GQL_SUCCESS(out);
+        EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
+    }
+}
+
+TEST_F(WssLinkPersistenceTest, ConcurrentSubscriptions) {
+    auto sub_out = std::async(std::launch::async, [this] {
+        return to_result(_client.Subscribe(R"(
+            subscription OnCount($to: Int!) {
+                onCount(to: $to)
+            }
+        )", {{"to", 3}}));
+    }).get();
+    auto query_out = std::async(std::launch::async, [this] {
+        return to_result(_client.Query("{ hello }"));
+    }).get();
+
+    ASSERT_GQL_SUCCESS(query_out);
+    ASSERT_FALSE(sub_out.exception);
+    ASSERT_EQ(sub_out.values.size(), 3u);
+    EXPECT_TRUE(sub_out.completed);
+}
+
+TEST(SslVerificationTest, RejectsUntrustedCert) {
+    WsLink link({.url = WssServerUrl});
+    auto out = to_result(link.Execute({.query = "{ __typename }"}));
+    EXPECT_NE(out.exception, nullptr);
 }
