@@ -21,6 +21,7 @@ target_link_libraries(gqlxy_client
 		Boost::url
 		OpenSSL::SSL
 		OpenSSL::Crypto
+		cppgraphqlgen::graphqlpeg
 )
 
 add_library(gqlxy::client ALIAS gqlxy_client)

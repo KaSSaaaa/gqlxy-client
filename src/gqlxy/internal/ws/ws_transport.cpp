@@ -4,6 +4,7 @@
 #include "wss_stream.h"
 
 #include <gqlxy/internal/asio_context.h>
+#include <iostream>
 
 using namespace std;
 using namespace std::chrono;
@@ -75,8 +76,9 @@ void WsTransport::OnRead(const beast::error_code& ec, size_t) {
 }
 
 void WsTransport::Write() {
-    _stream->Write(
-        net::buffer(_writeQueue.front()), [self = shared_from_this()](const auto& ec, size_t) { self->OnWrite(ec); });
+    auto payload = _writeQueue.front();
+    cout << "WS: " << payload << endl;
+    _stream->Write(net::buffer(payload), [self = shared_from_this()](const auto& ec, size_t) { self->OnWrite(ec); });
 }
 
 void WsTransport::OnWrite(const beast::error_code& ec) {

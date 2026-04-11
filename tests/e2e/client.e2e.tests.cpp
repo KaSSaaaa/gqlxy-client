@@ -1,7 +1,9 @@
 #include "server_fixture.h"
 #include "to_result.h"
 
+#include <gqlxy/cache/in_memory_cache.h>
 #include <gqlxy/client.h>
+#include <gqlxy/client/fetch_policy.h>
 #include <gqlxy/links/http_link.h>
 #include <gqlxy/links/split_link.h>
 #include <gqlxy/links/ws_link.h>
@@ -84,32 +86,36 @@ protected:
 };
 
 TEST_P(LinkTest, HelloQuery) {
-    auto out = to_result(_client->Query("{ hello }"));
+    auto out = to_result(_client->Query({.query = "{ hello }"}));
     ASSERT_GQL_SUCCESS(out);
     EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
     EXPECT_TRUE(out.completed);
 }
 
 TEST_P(LinkTest, EchoWithVariables) {
-    auto out = to_result(_client->Query(R"(
+    auto out = to_result(_client->Query({
+        .query = R"(
         query Echo($msg: String!) {
             echo(message: $msg)
-        })", {{"msg", "ping pong"}}
-    ));
+        })",
+        .variables = {{"msg", "ping pong"}},
+    }));
     ASSERT_GQL_SUCCESS(out);
     EXPECT_EQ(out.values[0].data.value()["echo"], "ping pong");
 }
 
 TEST_P(LinkTest, UserQuery) {
-    auto out = to_result(_client->Query(R"(
+    auto out = to_result(_client->Query({
+        .query = R"(
         query GetUser($id: ID!) {
             user(id: $id) {
                 id
                 name
                 email
             }
-        })", {{"id", "1"}}
-    ));
+        })",
+        .variables = {{"id", "1"}},
+    }));
     ASSERT_GQL_SUCCESS(out);
     const auto& user = out.values[0].data.value()["user"];
     EXPECT_EQ(user["name"], "Alice");
@@ -117,20 +123,22 @@ TEST_P(LinkTest, UserQuery) {
 }
 
 TEST_P(LinkTest, NullUserReturnsNullData) {
-    auto out = to_result(_client->Query(R"(
+    auto out = to_result(_client->Query({
+        .query = R"(
         query GetUser($id: ID!) {
             user(id: $id) {
                 id
                 name
             }
-        })", {{"id", "999"}}
-    ));
+        })",
+        .variables = {{"id", "999"}},
+    }));
     ASSERT_GQL_SUCCESS(out);
     EXPECT_TRUE(out.values[0].data.value()["user"].is_null());
 }
 
 TEST_P(LinkTest, GraphQLErrorPropagated) {
-    auto out = to_result(_client->Query("{ fail }"));
+    auto out = to_result(_client->Query({.query = "{ fail }"}));
     ASSERT_FALSE(out.exception);
     ASSERT_EQ(out.values.size(), 1u);
     EXPECT_TRUE(out.values[0].errors.has_value());
@@ -150,11 +158,14 @@ protected:
 
 TEST_P(CountTest, ReceivesExactCountAndCompletes) {
     const int count = get<1>(GetParam());
-    auto out = to_result(_client->Subscribe(R"(
+    auto out = to_result(_client->Subscribe({
+        .query = R"(
         subscription OnCount($to: Int!) {
             onCount(to: $to)
         }
-    )", {{"to", count}}));
+    )",
+        .variables = {{"to", count}},
+    }));
 
     ASSERT_FALSE(out.exception);
     ASSERT_EQ(out.values.size(), static_cast<size_t>(count));
@@ -178,7 +189,7 @@ TEST(HttpLinkTest, CustomHeadersForwarded) {
         .url = ServerUrl,
         .headers = {{"x-client-name", "gqlxy-test"}},
     })});
-    auto out = to_result(client.Query("{ hello }"));
+    auto out = to_result(client.Query({.query = "{ hello }"}));
     ASSERT_GQL_SUCCESS(out);
     EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
 }
@@ -188,11 +199,14 @@ TEST(SseTest, CustomHeadersForwarded) {
         .url = ServerUrl,
         .headers = {{"X-Test-Header", "sse-value"}},
     })});
-    auto out = to_result(client.Subscribe(R"(
+    auto out = to_result(client.Subscribe({
+        .query = R"(
         subscription OnCount($to: Int!) {
             onCount(to: $to)
         }
-    )", {{"to", 2}}));
+    )",
+        .variables = {{"to", 2}},
+    }));
     ASSERT_FALSE(out.exception);
     ASSERT_EQ(out.values.size(), 2u);
     EXPECT_TRUE(out.completed);
@@ -215,12 +229,14 @@ TEST_F(BlockingTest, SequentialRequestsAreBlocking) {
     constexpr int DelayMs = 100;
 
     const auto t0 = Now();
-    auto slow = to_result(_client.Query(R"(
+    auto slow = to_result(_client.Query({
+        .query = R"(
         query Slow($ms: Int!) {
             delay(ms: $ms)
-        })", {{"ms", DelayMs}}
-    ));
-    auto fast = to_result(_client.Query("{ hello }"));
+        })",
+        .variables = {{"ms", DelayMs}},
+    }));
+    auto fast = to_result(_client.Query({.query = "{ hello }"}));
     const auto total = ElapsedMs(t0);
 
     ASSERT_GQL_SUCCESS(slow);
@@ -235,13 +251,15 @@ TEST_F(BlockingTest, ParallelRequestsOverlap) {
 
     const auto t0 = Now();
     auto slow_f = async(launch::async, [DelayMs, this] {
-        return to_result(_client.Query(R"(
+        return to_result(_client.Query({
+            .query = R"(
             query Slow($ms: Int!) {
                 delay(ms: $ms)
-            })", {{"ms", DelayMs}}
-        ));
+            })",
+            .variables = {{"ms", DelayMs}},
+        }));
     });
-    auto fast_f = async(launch::async, [this] { return to_result(_client.Query("{ hello }")); });
+    auto fast_f = async(launch::async, [this] { return to_result(_client.Query({.query = "{ hello }"})); });
 
     auto slow = slow_f.get();
     auto fast = fast_f.get();
@@ -260,7 +278,7 @@ protected:
 
 TEST_F(WsLinkPersistenceTest, ConnectionReused) {
     for (int i = 0; i < 3; ++i) {
-        auto out = to_result(_client.Query("{ hello }"));
+        auto out = to_result(_client.Query({.query = "{ hello }"}));
         ASSERT_GQL_SUCCESS(out);
         EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
     }
@@ -268,14 +286,17 @@ TEST_F(WsLinkPersistenceTest, ConnectionReused) {
 
 TEST_F(WsLinkPersistenceTest, ConcurrentSubscriptions) {
     auto sub_f = std::async(std::launch::async, [this] {
-        return to_result(_client.Subscribe(R"(
+        return to_result(_client.Subscribe({
+            .query = R"(
             subscription OnCount($to: Int!) {
                 onCount(to: $to)
             }
-        )", {{"to", 3}}));
+        )",
+            .variables = {{"to", 3}},
+        }));
     });
     auto query_f = std::async(std::launch::async, [this] {
-        return to_result(_client.Query("{ hello }"));
+        return to_result(_client.Query({.query = "{ hello }"}));
     });
 
     auto sub_out = sub_f.get();
@@ -295,7 +316,7 @@ TEST(HttpsLinkTest, CustomHeadersForwarded) {
             .caCert = TestCaCert,
         })
     });
-    auto out = to_result(client.Query("{ hello }"));
+    auto out = to_result(client.Query({.query = "{ hello }"}));
     ASSERT_GQL_SUCCESS(out);
     EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
 }
@@ -314,7 +335,7 @@ protected:
 
 TEST_F(WssLinkPersistenceTest, ConnectionReused) {
     for (int i = 0; i < 3; ++i) {
-        auto out = to_result(_client.Query("{ hello }"));
+        auto out = to_result(_client.Query({.query = "{ hello }"}));
         ASSERT_GQL_SUCCESS(out);
         EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
     }
@@ -322,14 +343,17 @@ TEST_F(WssLinkPersistenceTest, ConnectionReused) {
 
 TEST_F(WssLinkPersistenceTest, ConcurrentSubscriptions) {
     auto sub_out = std::async(std::launch::async, [this] {
-        return to_result(_client.Subscribe(R"(
+        return to_result(_client.Subscribe({
+            .query = R"(
             subscription OnCount($to: Int!) {
                 onCount(to: $to)
             }
-        )", {{"to", 3}}));
+        )",
+            .variables = {{"to", 3}},
+        }));
     }).get();
     auto query_out = std::async(std::launch::async, [this] {
-        return to_result(_client.Query("{ hello }"));
+        return to_result(_client.Query({.query = "{ hello }"}));
     }).get();
 
     ASSERT_GQL_SUCCESS(query_out);
@@ -342,4 +366,111 @@ TEST(SslVerificationTest, RejectsUntrustedCert) {
     WsLink link({.url = WssServerUrl});
     auto out = to_result(link.Execute({.query = "{ __typename }"}));
     EXPECT_NE(out.exception, nullptr);
+}
+
+class SpyLink : public Link {
+public:
+    explicit SpyLink(shared_ptr<Link> inner) : _inner(std::move(inner)) {}
+
+    Observable<GraphQLResult> Execute(const GraphQLRequest& request) override {
+        _callCount++;
+        return _inner->Execute(request);
+    }
+
+    int CallCount() const { return _callCount; }
+
+private:
+    shared_ptr<Link> _inner;
+    atomic<int> _callCount {0};
+};
+
+TEST(CachePolicyTest, CacheFirstSkipsNetworkOnHit) {
+    auto spy = make_shared<SpyLink>(make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl}));
+    auto cache = make_shared<InMemoryCache>();
+    Client client({.link = spy, .cache = cache});
+
+    auto out1 = to_result(client.Query({.query = "{ hello }"}));
+    ASSERT_GQL_SUCCESS(out1);
+    EXPECT_EQ(spy->CallCount(), 1);
+
+    auto out2 = to_result(client.Query({.query = "{ hello }"}));
+    ASSERT_GQL_SUCCESS(out2);
+    EXPECT_EQ(spy->CallCount(), 1);
+    EXPECT_EQ(out2.values[0].data, out1.values[0].data);
+}
+
+TEST(CachePolicyTest, NetworkOnlyAlwaysFetches) {
+    auto spy = make_shared<SpyLink>(make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl}));
+    auto cache = make_shared<InMemoryCache>();
+    Client client({.link = spy, .cache = cache});
+
+    auto out1 = to_result(client.Query({.query = "{ hello }", .fetchPolicy = FetchPolicy::NetworkOnly}));
+    ASSERT_GQL_SUCCESS(out1);
+
+    auto out2 = to_result(client.Query({.query = "{ hello }", .fetchPolicy = FetchPolicy::NetworkOnly}));
+    ASSERT_GQL_SUCCESS(out2);
+    EXPECT_EQ(spy->CallCount(), 2);
+}
+
+TEST(CachePolicyTest, CacheAndNetworkEmitsTwoResults) {
+    auto spy = make_shared<SpyLink>(make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl}));
+    auto cache = make_shared<InMemoryCache>();
+    Client client({.link = spy, .cache = cache});
+
+    to_result(client.Query({.query = "{ hello }"}));
+
+    auto out = to_result(client.Query({.query = "{ hello }", .fetchPolicy = FetchPolicy::CacheAndNetwork}));
+    ASSERT_FALSE(out.exception);
+    EXPECT_EQ(out.values.size(), 2u);
+    EXPECT_EQ(spy->CallCount(), 2);
+}
+
+TEST(CachePolicyTest, NoCacheDoesNotPopulateCache) {
+    auto spy = make_shared<SpyLink>(make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl}));
+    auto cache = make_shared<InMemoryCache>();
+    Client client({.link = spy, .cache = cache});
+
+    to_result(client.Query({.query = "{ hello }", .fetchPolicy = FetchPolicy::NoCache}));
+
+    auto out = to_result(client.Query({.query = "{ hello }"}));
+    ASSERT_GQL_SUCCESS(out);
+    EXPECT_EQ(spy->CallCount(), 2);
+}
+
+TEST(CachePolicyTest, RefetchBypassesCache) {
+    auto spy = make_shared<SpyLink>(make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl}));
+    auto cache = make_shared<InMemoryCache>();
+    Client client({.link = spy, .cache = cache});
+
+    to_result(client.Query({.query = "{ hello }"}));
+    EXPECT_EQ(spy->CallCount(), 1);
+
+    auto out = to_result(client.Refetch({.query = "{ hello }"}));
+    ASSERT_GQL_SUCCESS(out);
+    EXPECT_EQ(spy->CallCount(), 2);
+}
+
+TEST(CachePolicyTest, MutationUsesNetworkOnly) {
+    auto spy = make_shared<SpyLink>(make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl}));
+    auto cache = make_shared<InMemoryCache>();
+    Client client({.link = spy, .cache = cache});
+
+    auto out = to_result(client.Mutation({
+        .query = R"(
+        mutation Echo($msg: String!) {
+            echo(message: $msg)
+        }
+    )",
+        .variables = {{"msg", "test"}},
+    }));
+    ASSERT_GQL_SUCCESS(out);
+    EXPECT_EQ(spy->CallCount(), 1);
+}
+
+TEST(CachePolicyTest, NoCacheClientWorks) {
+    Client client({.link = make_shared<HttpLink>(HttpLinkOptions{.url = ServerUrl})});
+
+    auto out = to_result(client.Query({.query = "{ hello }"}));
+    ASSERT_GQL_SUCCESS(out);
+    EXPECT_EQ(out.values[0].data.value()["hello"], "Hello from gqlxy!");
 }

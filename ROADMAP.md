@@ -9,12 +9,13 @@ This document tracks what is already in place and what remains to be built.
 - Project scaffold: CMake + vcpkg, C++20, cross-platform presets (arm64/x64 macOS, Linux, Windows)
 - Public API defined: `Client`, `Link`, `Cache`, `GraphQLRequest`, `GraphQLResult`, `Task<T>`
 - Link abstractions: `HttpLink`, `WsLink`, `SplitLink` (implemented); `SseLink` (merged into `HttpLink`)
-- `InMemoryCache` — thread-safe normalized result cache
+- `InMemoryCache` — Apollo-style normalized entity cache with `__typename:id` keying, type policies, and `Extract()` for store inspection
 - Observable API: `Client::Query()` / `Client::Mutation()` / `Client::Subscribe()` returning `Observable<GraphQLResult>` (supports both `co_await` and `.subscribe()`)
+- Fetch policies: `CacheFirst`, `NetworkOnly`, `CacheAndNetwork`, `NoCache` + `Client::Refetch()`
 - **P1 complete**: `HttpLink` — HTTP/HTTPS queries & mutations + SSE subscriptions via Boost.Beast
 - **P3 complete**: `WsLink` — persistent WebSocket connection shared across requests, reconnect with back-off, concurrent subscriptions with distinct IDs
-- Unit tests: `InMemoryCache`, `HttpLink`, `WsLink`
-- E2E tests: HTTP queries, SSE subscriptions, WS queries & subscriptions, WS connection reuse & concurrent subscriptions (against in-process gqlxy-server)
+- Unit tests: `InMemoryCache` (normalized), query parser, `HttpLink`, `WsLink`
+- E2E tests: HTTP queries, SSE subscriptions, WS queries & subscriptions, WS connection reuse, cache policies (against in-process gqlxy-server)
 
 ---
 
@@ -71,15 +72,15 @@ Wire `Task<T>` into the boost::asio event loop so that `Query()` / `Mutation()` 
 
 ---
 
-## P5 — Cache Integration
+## ~~P5 — Cache Integration~~ ✅ Done
 
-Connect `InMemoryCache` to the client execution path.
+Apollo-style `InMemoryCache` with normalized entity storage, fetch policies, and `Client::Refetch()`.
 
-| # | Feature | Notes |
-|---|---------|-------|
-| 15 | **Cache-first policy** | Check cache before executing; skip network on hit |
-| 16 | **Cache-and-network** | Return cached result immediately, then fetch and update |
-| 17 | **Cache invalidation** | `Client::Refetch()` to bypass cache for a specific request |
+| # | Feature | Status |
+|---|---------|--------|
+| 15 | **Cache-first policy** | ✅ |
+| 16 | **Cache-and-network** | ✅ |
+| 17 | **Cache invalidation** | ✅ |
 
 ---
 
@@ -90,6 +91,6 @@ Phase 1 — HttpLink (+ SSE)    : done
 Phase 2 — WsLink               : done
 Phase 3 — Persistent WsLink    : done
 Phase 4 — Async coroutines     : done
-Phase 5 — Cache integration    : #15, #16, #17
+Phase 5 — Cache integration    : done
 ```
 

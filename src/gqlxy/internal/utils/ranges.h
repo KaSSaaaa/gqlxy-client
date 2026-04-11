@@ -22,7 +22,7 @@ auto to_string(R&& r) {
 
 template<std::ranges::input_range R>
 auto trim(R&& s) {
-    static auto is_space = [](auto c) { return std::isspace(static_cast<unsigned char>(c)); };
+    static auto is_space = [](auto c) { return std::isspace(static_cast<uint8_t>(c)); };
     auto r = s | std::views::drop_while(is_space) | std::views::reverse | std::views::drop_while(is_space) |
              std::views::reverse;
     return std::string(r.begin(), r.end());

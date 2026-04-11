@@ -56,9 +56,9 @@ static void PrintResult(const GraphQLResult& r) {
 
 static void Execute(Client& client, const GraphQLRequest& req) {
     const auto op = DetectOp(req.query);
-    const auto obs = op == OperationType::Subscription ? client.Subscribe(req.query, req.variables)
-                     : op == OperationType::Mutation   ? client.Mutation(req.query, req.variables)
-                                                       : client.Query(req.query, req.variables);
+    const auto obs = op == OperationType::Subscription ? client.Subscribe({.query = req.query, .variables = req.variables})
+                     : op == OperationType::Mutation   ? client.Mutation({.query = req.query, .variables = req.variables})
+                                                       : client.Query({.query = req.query, .variables = req.variables});
     promise<void> done;
     obs.subscribe(
         [](const GraphQLResult& r) { PrintResult(r); },
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
     Client client({
         .link = make_shared<SplitLink>(
             [](const GraphQLRequest& req) {
-                return req.type == OperationType::Subscription;
+                return req.type != OperationType::Subscription;
             },
             make_shared<HttpLink>(HttpLinkOptions{.url = url}),
             make_shared<WsLink>(WsLinkOptions{.url = ws_url})

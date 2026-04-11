@@ -1,5 +1,7 @@
 #pragma once
 
+#include "fetch_policy.h"
+
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
@@ -30,6 +32,7 @@ struct GraphQLRequest {
     nlohmann::json variables = nullptr;
     std::optional<std::string> operationName;
     OperationType type;
+    FetchPolicy policy;
 };
 
 }

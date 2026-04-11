@@ -34,6 +34,8 @@ awaitable<vector<GraphQLResult>> SendAndReceive(
     req.body() = body;
     req.prepare_payload();
 
+    cout << "HTTP: " << body << endl;
+
     co_await stream.Write(req);
 
     boost::beast::flat_buffer buf;
@@ -66,7 +68,7 @@ HttpLink::HttpLink(const HttpLinkOptions& options) : _options(options) {}
 
 Observable<GraphQLResult> HttpLink::Execute(const GraphQLRequest& request) {
     return observable<>::create<GraphQLResult>([opts = _options, request](const auto& subscription) {
-        co_spawn(AsioContext::Get(), HttpRequest(opts, request), [subscription](auto exception, auto results) {
+        co_spawn(AsioContext::Get(), HttpRequest(opts, request), [subscription](const auto& exception, const auto& results) {
             if (!subscription.is_subscribed()) return;
             if (exception) return subscription.on_error(exception);
             for (const auto& result : results)
