@@ -25,6 +25,12 @@
         "oatpp-websocket",
         "oatpp-openssl"
       ]
+    },
+    "samples": {
+      "description": "Build sample applications",
+      "dependencies": [
+        "ftxui"
+      ]
     }
   }
 }

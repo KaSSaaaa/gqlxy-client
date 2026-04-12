@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gqlxy/subscription.h>
 #include <atomic>
 #include <coroutine>
 #include <exception>
@@ -19,19 +20,19 @@ public:
     Observable(rxcpp::observable<T, Source> inner) : _inner(inner.as_dynamic()) {}
 
     template<typename OnNext>
-    auto subscribe(OnNext&& on_next) const {
-        return _inner.subscribe(std::forward<OnNext>(on_next));
+    Subscription subscribe(OnNext&& on_next) const {
+        return Subscription{_inner.subscribe(std::forward<OnNext>(on_next))};
     }
 
     template<typename OnNext, typename OnError>
-    auto subscribe(OnNext&& on_next, OnError&& on_error) const {
-        return _inner.subscribe(std::forward<OnNext>(on_next), std::forward<OnError>(on_error));
+    Subscription subscribe(OnNext&& on_next, OnError&& on_error) const {
+        return Subscription{_inner.subscribe(std::forward<OnNext>(on_next), std::forward<OnError>(on_error))};
     }
 
     template<typename OnNext, typename OnError, typename OnCompleted>
-    auto subscribe(OnNext&& on_next, OnError&& on_error, OnCompleted&& on_completed) const {
-        return _inner.subscribe(
-            std::forward<OnNext>(on_next), std::forward<OnError>(on_error), std::forward<OnCompleted>(on_completed));
+    Subscription subscribe(OnNext&& on_next, OnError&& on_error, OnCompleted&& on_completed) const {
+        return Subscription{_inner.subscribe(
+            std::forward<OnNext>(on_next), std::forward<OnError>(on_error), std::forward<OnCompleted>(on_completed))};
     }
 
     operator rxcpp::observable<T>() const {

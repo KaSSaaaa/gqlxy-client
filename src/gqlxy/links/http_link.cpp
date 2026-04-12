@@ -9,9 +9,9 @@
 #include <gqlxy/internal/http/response.h>
 #include <gqlxy/internal/http/serialization.h>
 #include <gqlxy/internal/url.h>
+#include <limits>
 #include <map>
 #include <string>
-#include <vector>
 
 using namespace std;
 using namespace gqlxy;
@@ -21,59 +21,92 @@ namespace http = boost::beast::http;
 using namespace rxcpp;
 using net::awaitable;
 
-awaitable<vector<GraphQLResult>> SendAndReceive(
-    IHttpStream& stream, const string& host, const string& target, const string& body,
-    const map<string, string>& extra_headers) {
-    http::request<http::string_body> req {http::verb::post, target, 11};
-    req.set(http::field::host, host);
-    req.set(http::field::content_type, "application/json");
-    req.set(http::field::accept, "application/json, text/event-stream");
-    req.set(http::field::user_agent, "gqlxy-client/0.1");
-    for (const auto& [k, v] : extra_headers)
-        req.set(k, v);
-    req.body() = body;
-    req.prepare_payload();
+awaitable<void> HttpRequest(HttpLinkOptions opts, GraphQLRequest req, rxcpp::subscriber<GraphQLResult> sub) {
+    try {
+        const auto url = ParseHttpUrl(opts.url);
+        const auto body = SerializeRequest(req).dump();
 
-    cout << "HTTP: " << body << endl;
+        auto executor = co_await net::this_coro::executor;
+        auto stream = url.tls ? static_pointer_cast<IHttpStream>(make_shared<HttpsStream>(executor, opts.caCert))
+                              : make_shared<HttpStream>(executor);
 
-    co_await stream.Write(req);
+        co_await stream->Connect(url.host, url.port);
 
-    boost::beast::flat_buffer buf;
-    http::response<http::string_body> res;
-    co_await stream.Read(buf, res);
+        http::request<http::string_body> httpReq {http::verb::post, url.target, 11};
+        httpReq.set(http::field::host, url.host);
+        httpReq.set(http::field::content_type, "application/json");
+        httpReq.set(http::field::accept, "application/json, text/event-stream");
+        httpReq.set(http::field::user_agent, "gqlxy-client/0.1");
+        for (const auto& [k, v] : opts.headers)
+            httpReq.set(k, v);
+        httpReq.body() = body;
+        httpReq.prepare_payload();
 
-    if (const auto status = res.result(); status >= http::status::bad_request)
-        co_return vector {MapHttpError(status, res.reason())};
+        co_await stream->Write(httpReq);
 
-    if (res[http::field::content_type].find("text/event-stream") != string::npos) co_return ParseSseBody(res.body());
+        boost::beast::flat_buffer buf;
+        http::response_parser<http::string_body> parser;
+        parser.body_limit(numeric_limits<uint64_t>::max());
 
-    co_return vector {ParseJsonResponse(res.body())};
-}
+        co_await stream->ReadHeader(buf, parser);
 
-awaitable<vector<GraphQLResult>> HttpRequest(const HttpLinkOptions& opts, const GraphQLRequest& req) {
-    const auto url = ParseHttpUrl(opts.url);
-    const auto body = SerializeRequest(req).dump();
+        const auto status = parser.get().result();
+        if (status >= http::status::bad_request) {
+            sub.on_next(MapHttpError(status, parser.get().reason()));
+            sub.on_completed();
+            co_return;
+        }
 
-    auto executor = co_await net::this_coro::executor;
-    auto stream = url.tls ? static_pointer_cast<IHttpStream>(make_shared<HttpsStream>(executor, opts.caCert))
-                          : make_shared<HttpStream>(executor);
+        const bool isSse = parser.get()[http::field::content_type].find("text/event-stream") != string::npos;
 
-    co_await stream->Connect(url.host, url.port);
-    auto results = co_await SendAndReceive(*stream, url.host, url.target, body, opts.headers);
-    co_await stream->Shutdown();
-    co_return results;
+        if (!isSse) {
+            while (co_await stream->ReadBodyChunk(buf, parser))
+                ;
+            if (sub.is_subscribed()) {
+                sub.on_next(ParseJsonResponse(parser.get().body()));
+                sub.on_completed();
+            }
+        } else {
+            string pending;
+            size_t processedSize = 0;
+
+            while (sub.is_subscribed()) {
+                const bool more = co_await stream->ReadBodyChunk(buf, parser);
+                const auto& totalBody = parser.get().body();
+
+                if (totalBody.size() > processedSize) {
+                    pending += totalBody.substr(processedSize);
+                    processedSize = totalBody.size();
+
+                    auto [results, remaining, completed] = DrainSseEvents(pending);
+                    pending = std::move(remaining);
+
+                    for (auto& r : results) {
+                        if (!sub.is_subscribed()) co_return;
+                        sub.on_next(std::move(r));
+                    }
+
+                    if (completed) break;
+                }
+
+                if (!more) break;
+            }
+
+            if (sub.is_subscribed()) sub.on_completed();
+        }
+
+        co_await stream->Shutdown();
+    } catch (...) {
+        if (sub.is_subscribed()) sub.on_error(current_exception());
+    }
 }
 
 HttpLink::HttpLink(const HttpLinkOptions& options) : _options(options) {}
 
 Observable<GraphQLResult> HttpLink::Execute(const GraphQLRequest& request) {
-    return observable<>::create<GraphQLResult>([opts = _options, request](const auto& subscription) {
-        co_spawn(AsioContext::Get(), HttpRequest(opts, request), [subscription](const auto& exception, const auto& results) {
-            if (!subscription.is_subscribed()) return;
-            if (exception) return subscription.on_error(exception);
-            for (const auto& result : results)
-                subscription.on_next(result);
-            subscription.on_completed();
+    return observable<>::create<GraphQLResult>([opts = _options, request](const auto& sub) {
+        co_spawn(AsioContext::Get(), HttpRequest(opts, request, sub), [sub](const exception_ptr& ep) {
+            if (ep && sub.is_subscribed()) sub.on_error(ep);
         });
     });
 }

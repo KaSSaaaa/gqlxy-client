@@ -77,7 +77,6 @@ void WsTransport::OnRead(const beast::error_code& ec, size_t) {
 
 void WsTransport::Write() {
     auto payload = _writeQueue.front();
-    cout << "WS: " << payload << endl;
     _stream->Write(net::buffer(payload), [self = shared_from_this()](const auto& ec, size_t) { self->OnWrite(ec); });
 }
 

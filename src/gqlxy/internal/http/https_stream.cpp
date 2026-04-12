@@ -33,8 +33,16 @@ awaitable<void> HttpsStream::Connect(const string& host, const string& port) {
 awaitable<void> HttpsStream::Write(const request<string_body>& req) {
     co_await async_write(_stream, req, use_awaitable);
 }
-awaitable<void> HttpsStream::Read(flat_buffer& buf, response<string_body>& res) {
-    co_await async_read(_stream, buf, res, use_awaitable);
+awaitable<void> HttpsStream::ReadHeader(flat_buffer& buf, response_parser<string_body>& parser) {
+    co_await async_read_header(_stream, buf, parser, use_awaitable);
+}
+awaitable<bool> HttpsStream::ReadBodyChunk(flat_buffer& buf, response_parser<string_body>& parser) {
+    if (parser.is_done()) co_return false;
+    beast::error_code ec;
+    co_await async_read_some(_stream, buf, parser, redirect_error(use_awaitable, ec));
+    if (ec == net::error::eof || ec == http::error::end_of_stream) co_return false;
+    if (ec) throw boost::system::system_error(ec);
+    co_return !parser.is_done();
 }
 awaitable<void> HttpsStream::Shutdown() {
     beast::error_code ec;

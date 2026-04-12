@@ -64,11 +64,45 @@ static vector<GraphQLResult> ParseSseBlock(const vector<string>& block) {
     return {ParseJsonResponse(trim(data->substr(5)))};
 }
 
-vector<GraphQLResult> ParseSseBody(const string& body) {
-    return flat_map(chunk_by_blank(to_vector(split(body, '\n') | views::transform([](string line) {
+static bool IsSseComplete(const vector<string>& block) {
+    auto event = find_optional(block, [](const auto& l) { return l.starts_with("event:"); });
+    return event && trim(event->substr(6)) == "complete";
+}
+
+static auto ToSseLines(const string& text) {
+    return to_vector(split(text, '\n') | views::transform([](string line) {
         if (!line.empty() && line.back() == '\r') line.pop_back();
         return line;
-    }))), ParseSseBlock);
+    }));
+}
+
+vector<GraphQLResult> ParseSseBody(const string& body) {
+    return flat_map(chunk_by_blank(ToSseLines(body)), ParseSseBlock);
+}
+
+SseDrain DrainSseEvents(const string& pending) {
+    size_t last_sep = string::npos;
+    size_t pos = 0;
+    while ((pos = pending.find("\n\n", pos)) != string::npos) {
+        last_sep = pos;
+        pos += 2;
+    }
+    if (last_sep == string::npos) return {{}, pending, false};
+
+    const auto complete = pending.substr(0, last_sep + 2);
+    const auto remaining = pending.substr(last_sep + 2);
+
+    vector<GraphQLResult> results;
+    bool completed = false;
+    for (const auto& block : chunk_by_blank(ToSseLines(complete))) {
+        if (IsSseComplete(block)) {
+            completed = true;
+            break;
+        }
+        auto r = ParseSseBlock(block);
+        results.insert(results.end(), r.begin(), r.end());
+    }
+    return {std::move(results), remaining, completed};
 }
 
 }
