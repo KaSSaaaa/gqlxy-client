@@ -1,24 +1,17 @@
 #pragma once
 
 #include <gqlxy/link.h>
+#include <gqlxy/links/http_link.h>
 
 #include <boost/uuid/random_generator.hpp>
-#include <map>
 #include <memory>
-#include <optional>
-#include <string>
-
-namespace gqlxy::internal {
-    class WsConnectionContext;
-}
 
 namespace gqlxy {
+namespace internal {
+class WsConnectionContext;
+}
 
-struct WsLinkOptions {
-    std::string url;
-    std::map<std::string, std::string> headers;
-    std::optional<std::string> caCert;
-};
+using WsLinkOptions = LinkOptions;
 
 class WsLink : public Link {
 public:

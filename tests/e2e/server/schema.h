@@ -19,10 +19,14 @@ inline const std::map<std::string, Resolver> Users = {
         {"name", "Alice"},
         {"email", "alice@example.com"}
     }},
-    {"2", Resolver{{"id", "2"}, {"name", "Bob"},   {"email", "bob@example.com"}}},
+    {"2", Resolver{
+        {"id", "2"},
+        {"name", "Bob"},
+        {"email", "bob@example.com"}
+    }},
 };
 
-inline Schema MakeE2ESchema() {
+inline Schema CreateSchema() {
     using namespace std;
     return Schema({
         .typeDefs = R"(

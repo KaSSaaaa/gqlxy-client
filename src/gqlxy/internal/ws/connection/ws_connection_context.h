@@ -69,7 +69,7 @@ private:
     int _reconnectAttempt {0};
     bool _everConnected {false};
     WsLinkOptions _opts;
-    ParsedUrl _url;
+    Url _url;
     std::exception_ptr _initError;
     std::atomic<bool> _stopping {false};
 };

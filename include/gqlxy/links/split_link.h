@@ -1,21 +1,21 @@
 #pragma once
 
-#include <gqlxy/link.h>
 #include <functional>
+#include <gqlxy/link.h>
 #include <memory>
 
 namespace gqlxy {
 
 class SplitLink : public Link {
 public:
-    using Predicate = std::function<bool(const GraphQLRequest&)>;
-
-    SplitLink(const Predicate& condition, const std::shared_ptr<Link>& left, const std::shared_ptr<Link>& right);
+    SplitLink(
+        const std::function<bool(const GraphQLRequest&)>& condition, const std::shared_ptr<Link>& left,
+        const std::shared_ptr<Link>& right);
 
     Observable<GraphQLResult> Execute(const GraphQLRequest& request) override;
 
 private:
-    Predicate _condition;
+    std::function<bool(const GraphQLRequest&)> _condition;
     std::shared_ptr<Link> _left;
     std::shared_ptr<Link> _right;
 };

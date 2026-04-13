@@ -23,15 +23,15 @@ struct WsTransportCallbacks {
 class WsTransport : public std::enable_shared_from_this<WsTransport> {
 public:
     WsTransport(
-        const ParsedUrl& url, const std::map<std::string, std::string>& headers,
-        const WsTransportCallbacks& cbs, const std::optional<std::string>& caCert = std::nullopt);
+        const Url& url, const std::map<std::string, std::string>& headers, const WsTransportCallbacks& cbs,
+        const std::optional<std::string>& caCert = std::nullopt);
 
     void Connect();
     void Send(const std::string& msg);
     void Close();
 
 private:
-    ParsedUrl _url;
+    Url _url;
     std::map<std::string, std::string> _headers;
     WsTransportCallbacks _cbs;
     std::optional<std::string> _caCert;

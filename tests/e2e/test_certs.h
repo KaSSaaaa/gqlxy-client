@@ -4,7 +4,7 @@
 
 namespace gqlxy::e2e {
 
-constexpr std::string_view CaCert =
+static const std::string CaCert =
     R"(-----BEGIN CERTIFICATE-----
 MIIBhTCCASugAwIBAgIUGY3oljLyBTx65tuSOau9z7bttP8wCgYIKoZIzj0EAwIw
 GDEWMBQGA1UEAwwNZ3FseHktdGVzdC1jYTAeFw0yNjA0MDkxNjQzNTdaFw0zNjA0
@@ -17,7 +17,7 @@ yOl0Am66zeJjSgPyIEuItGTQouCGeVQCIGfEIMyPwUJ7P1lvY8K/ZSLcs1Bb9R9z
 XU80OjnHJ/Rq
 -----END CERTIFICATE-----)";
 
-constexpr std::string_view ServerCert =
+static const std::string ServerCert =
     R"(-----BEGIN CERTIFICATE-----
 MIIBjTCCATKgAwIBAgIUdzkUKiq+ixfZQJKw3fmCBHYFdkcwCgYIKoZIzj0EAwIw
 GDEWMBQGA1UEAwwNZ3FseHktdGVzdC1jYTAeFw0yNjA0MDkxNjQzNTdaFw0zNjA0

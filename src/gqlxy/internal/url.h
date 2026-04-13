@@ -8,15 +8,15 @@
 
 namespace gqlxy::internal {
 
-struct ParsedUrl {
+struct Url {
     bool tls;
     std::string host;
     std::string port;
     std::string target;
 };
 
-ParsedUrl ParseUrl(const std::string& url, const std::vector<boost::urls::scheme>& allowedSchemes);
-ParsedUrl ParseHttpUrl(const std::string& url);
-ParsedUrl ParseWsUrl(const std::string& url);
+Url ParseUrl(const std::string& url, const std::vector<boost::urls::scheme>& allowedSchemes);
+Url ParseHttpUrl(const std::string& url);
+Url ParseWsUrl(const std::string& url);
 
 }

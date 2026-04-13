@@ -34,7 +34,7 @@ public:
 
 protected:
     WsStreamBase(
-        const ParsedUrl& url, const std::map<std::string, std::string>& headers,
+        const Url& url, const std::map<std::string, std::string>& headers,
         boost::beast::websocket::stream<Stream> ws)
         : _url(url),
           _headers(headers),
@@ -52,7 +52,7 @@ protected:
         });
     }
 
-    ParsedUrl _url;
+    Url _url;
     std::map<std::string, std::string> _headers;
     boost::beast::websocket::stream<Stream> _ws;
     boost::beast::lowest_layer_type<boost::beast::websocket::stream<Stream>>& _lowWs;

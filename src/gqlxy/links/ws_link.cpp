@@ -1,7 +1,6 @@
 #include <gqlxy/links/ws_link.h>
 
 #include <gqlxy/internal/ws/connection/ws_connection_context.h>
-
 #include <boost/uuid/uuid_io.hpp>
 
 using namespace std;

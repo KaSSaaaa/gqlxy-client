@@ -15,8 +15,7 @@ using namespace boost::beast::websocket;
 using tcp = net::ip::tcp;
 
 WsTransport::WsTransport(
-    const ParsedUrl& url, const map<string, string>& headers,
-    const WsTransportCallbacks& cbs, const optional<string>& caCert)
+    const Url& url, const map<string, string>& headers, const WsTransportCallbacks& cbs, const optional<string>& caCert)
     : _url(url),
       _headers(headers),
       _cbs(cbs),
@@ -66,7 +65,9 @@ void WsTransport::OnResolved(const beast::error_code& ec, const tcp::resolver::r
 
 void WsTransport::Read() {
     _readBuf.clear();
-    _stream->Read(_readBuf, [self = shared_from_this()](const auto& ec, const auto bytes) { self->OnRead(ec, bytes); });
+    _stream->Read(_readBuf, [self = shared_from_this()](const auto& ec, const auto bytes) {
+        self->OnRead(ec, bytes);
+    });
 }
 
 void WsTransport::OnRead(const beast::error_code& ec, size_t) {
@@ -76,8 +77,9 @@ void WsTransport::OnRead(const beast::error_code& ec, size_t) {
 }
 
 void WsTransport::Write() {
-    auto payload = _writeQueue.front();
-    _stream->Write(net::buffer(payload), [self = shared_from_this()](const auto& ec, size_t) { self->OnWrite(ec); });
+    _stream->Write(net::buffer(_writeQueue.front()), [self = shared_from_this()](const auto& ec, size_t) {
+        self->OnWrite(ec);
+    });
 }
 
 void WsTransport::OnWrite(const beast::error_code& ec) {

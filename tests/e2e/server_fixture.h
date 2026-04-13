@@ -1,18 +1,14 @@
 #pragma once
 
-#include <gqlxy/results.h>
-#include <gqlxy/server/standalone_server.h>
-#include <gtest/gtest.h>
-
 #include "server/schema.h"
 #include "test_certs.h"
-
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <gqlxy/server/standalone_server.h>
+#include <gtest/gtest.h>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -65,7 +61,7 @@ public:
     void SetUp() override {
         WriteCertFiles();
 
-        _schema.emplace(MakeE2ESchema());
+        _schema.emplace(CreateSchema());
 
         _server = std::make_unique<server::StandaloneServer>(server::StandaloneServerOptions {
             .schema = *_schema,

@@ -1,28 +1,25 @@
 #pragma once
 
-#include "i_http_stream.h"
-
+#include "http_stream_base.h"
 #include <boost/beast/core/tcp_stream.hpp>
 #include <boost/beast/ssl/ssl_stream.hpp>
-
+#include <memory>
 #include <optional>
 #include <string>
 
 namespace gqlxy::internal {
 
-class HttpsStream : public IHttpStream {
+class HttpsStream : public HttpStreamBase<boost::beast::ssl_stream<boost::beast::tcp_stream>> {
 public:
     HttpsStream(const boost::asio::any_io_executor& ex, const std::optional<std::string>& caCert = std::nullopt);
 
     boost::asio::awaitable<void> Connect(const std::string& host, const std::string& port) override;
-    boost::asio::awaitable<void> Write(const boost::beast::http::request<boost::beast::http::string_body>& req) override;
-    boost::asio::awaitable<void> ReadHeader(boost::beast::flat_buffer& buf, boost::beast::http::response_parser<boost::beast::http::string_body>& parser) override;
-    boost::asio::awaitable<bool> ReadBodyChunk(boost::beast::flat_buffer& buf, boost::beast::http::response_parser<boost::beast::http::string_body>& parser) override;
     boost::asio::awaitable<void> Shutdown() override;
 
 private:
-    boost::asio::ssl::context _ctx;
-    boost::beast::ssl_stream<boost::beast::tcp_stream> _stream;
+    HttpsStream(const boost::asio::any_io_executor& ex, std::unique_ptr<boost::asio::ssl::context> ctx);
+
+    std::unique_ptr<boost::asio::ssl::context> _ctx;
 };
 
 }

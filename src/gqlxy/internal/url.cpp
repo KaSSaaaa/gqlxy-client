@@ -5,7 +5,7 @@ using namespace boost::urls;
 
 namespace gqlxy::internal {
 
-ParsedUrl ParseUrl(const string& url, const vector<scheme>& allowedSchemes) {
+Url ParseUrl(const string& url, const vector<scheme>& allowedSchemes) {
     auto r = parse_uri(url);
     if (!r) throw invalid_argument(std::format("Invalid GraphQL endpoint URL: {}", url));
 
@@ -23,11 +23,11 @@ ParsedUrl ParseUrl(const string& url, const vector<scheme>& allowedSchemes) {
     };
 }
 
-ParsedUrl ParseHttpUrl(const std::string& url) {
+Url ParseHttpUrl(const std::string& url) {
     return ParseUrl(url, {scheme::http, scheme::https});
 }
 
-ParsedUrl ParseWsUrl(const std::string& url) {
+Url ParseWsUrl(const std::string& url) {
     return ParseUrl(url, {scheme::ws, scheme::wss});
 }
 
