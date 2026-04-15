@@ -1,17 +1,10 @@
 #pragma once
 
 #include <gqlxy/link.h>
-#include <map>
-#include <optional>
-#include <string>
 
 namespace gqlxy {
 
-struct HttpLinkOptions {
-    std::string url;
-    std::map<std::string, std::string> headers;
-    std::optional<std::string> caCert;
-};
+using HttpLinkOptions = LinkOptions;
 
 class HttpLink : public Link {
 public:

@@ -5,6 +5,12 @@
 
 namespace gqlxy {
 
+struct LinkOptions {
+    std::string url;
+    std::map<std::string, std::string> headers;
+    std::optional<std::string> caCert;
+};
+
 class Link {
 public:
     virtual ~Link() = default;
