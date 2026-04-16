@@ -12,7 +12,7 @@ public:
         const std::function<bool(const GraphQLRequest&)>& condition, const std::shared_ptr<Link>& left,
         const std::shared_ptr<Link>& right);
 
-    Observable<GraphQLResult> Execute(const GraphQLRequest& request) override;
+    Observable<GraphQLResponse> Execute(const GraphQLRequest& request) override;
 
 private:
     std::function<bool(const GraphQLRequest&)> _condition;

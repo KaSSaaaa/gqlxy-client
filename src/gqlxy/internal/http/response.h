@@ -9,13 +9,15 @@
 
 namespace gqlxy::internal {
 
-GraphQLResult ParseJsonResponse(const std::string& body);
-GraphQLResult ParseJsonPayload(const nlohmann::json& body);
-GraphQLResult MapHttpError(boost::beast::http::status status, std::string_view reason);
-std::vector<GraphQLResult> ParseSseBody(const std::string& body);
+//TODO simplify
 
-struct SseDrain {
-    std::vector<GraphQLResult> results;
+GraphQLResponse ParseJsonResponse(const std::string& body);
+GraphQLResponse ParseJsonPayload(const nlohmann::json& body);
+GraphQLResponse MapHttpError(boost::beast::http::status status, std::string_view reason);
+std::vector<GraphQLResponse> ParseSseBody(const std::string& body);
+
+struct SseEvents {
+    std::vector<GraphQLResponse> results;
     std::string remaining;
     bool completed;
 };

@@ -36,14 +36,14 @@ class Client {
 public:
     Client(const ClientOptions& options);
 
-    Observable<GraphQLResult> Query(const QueryOptions& options);
-    Observable<GraphQLResult> Mutation(const MutationOptions& options);
-    Observable<GraphQLResult> Subscribe(const SubscribeOptions& options);
-    Observable<GraphQLResult> Refetch(const QueryOptions& options);
+    Observable<GraphQLResponse> Query(const QueryOptions& options);
+    Observable<GraphQLResponse> Mutation(const MutationOptions& options);
+    Observable<GraphQLResponse> Subscribe(const SubscribeOptions& options);
+    Observable<GraphQLResponse> Refetch(const QueryOptions& options);
 
 private:
-    Observable<GraphQLResult> Execute(const GraphQLRequest& request);
-    Observable<GraphQLResult> FetchFromNetwork(const GraphQLRequest& request);
+    Observable<GraphQLResponse> Execute(const GraphQLRequest& request);
+    Observable<GraphQLResponse> FetchFromNetwork(const GraphQLRequest& request);
 
     ClientOptions _options;
 };

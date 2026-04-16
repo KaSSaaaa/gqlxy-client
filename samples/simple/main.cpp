@@ -39,13 +39,13 @@ int main() {
 
     client.Query({.query = R"( query { __typename } )"})
         .subscribe(
-            [](const GraphQLResult& r) { cout << r.data->dump(2) << endl; },
+            [](const GraphQLResponse& r) { cout << r.data->dump(2) << endl; },
             [](exception_ptr) { cerr << "Query error" << endl; }
         );
 
     auto sub = client.Subscribe({.query = R"( subscription { onMessage { text } } )"})
         .subscribe(
-            [](const GraphQLResult& r) { cout << r.data->dump(2) << endl; },
+            [](const GraphQLResponse& r) { cout << r.data->dump(2) << endl; },
             [](exception_ptr) { cerr << "Subscription error" << endl; }
         );
 

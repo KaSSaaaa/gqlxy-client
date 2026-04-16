@@ -16,7 +16,7 @@ namespace gqlxy::internal {
 
 struct WsSubscription {
     GraphQLRequest request;
-    rxcpp::subscriber<GraphQLResult> subscriber;
+    rxcpp::subscriber<GraphQLResponse> subscriber;
 };
 
 class WsTransport;
@@ -33,19 +33,19 @@ public:
     explicit WsConnectionContext(const WsLinkOptions& opts);
     ~WsConnectionContext();
 
-    void Subscribe(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResult>& sub);
+    void Subscribe(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResponse>& sub);
     void Unsubscribe(const std::string& id);
     void Stop();
 
 private:
-    void OnSubscribe(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResult>& sub);
+    void OnSubscribe(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResponse>& sub);
     void OnUnsubscribe(const std::string& id);
     void OnTransportConnected();
     void OnTransportMessage(const std::string& raw);
     void OnTransportDisconnected();
     void TransitionTo(ConnectionState state);
 
-    void AddSub(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResult>& sub);
+    void AddSub(const std::string& id, const GraphQLRequest& req, const rxcpp::subscriber<GraphQLResponse>& sub);
     void RemoveSub(const std::string& id);
     bool HasSubs() const;
     void ReplaySubs();

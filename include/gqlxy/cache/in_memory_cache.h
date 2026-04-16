@@ -14,8 +14,8 @@ public:
     InMemoryCache() = default;
     explicit InMemoryCache(const InMemoryCacheOptions& options);
 
-    std::optional<GraphQLResult> Read(const GraphQLRequest& request) override;
-    void Write(const GraphQLRequest& request, const GraphQLResult& result) override;
+    std::optional<GraphQLResponse> Read(const GraphQLRequest& request) override;
+    void Write(const GraphQLRequest& request, const GraphQLResponse& result) override;
     void Evict(const GraphQLRequest& request) override;
 
     void EvictEntity(const std::string& entityId);

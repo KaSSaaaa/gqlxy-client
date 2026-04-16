@@ -18,7 +18,7 @@ public:
     WsLink(const WsLinkOptions& options);
     ~WsLink() override;
 
-    Observable<GraphQLResult> Execute(const GraphQLRequest& request) override;
+    Observable<GraphQLResponse> Execute(const GraphQLRequest& request) override;
 
 private:
     WsLinkOptions _options;

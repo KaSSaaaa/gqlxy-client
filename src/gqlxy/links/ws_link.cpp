@@ -16,8 +16,8 @@ WsLink::~WsLink() {
     _connection->Stop();
 }
 
-Observable<GraphQLResult> WsLink::Execute(const GraphQLRequest& request) {
-    return observable<>::create<GraphQLResult>([conn = _connection, req = request, this](const auto& s) {
+Observable<GraphQLResponse> WsLink::Execute(const GraphQLRequest& request) {
+    return observable<>::create<GraphQLResponse>([conn = _connection, req = request, this](const auto& s) {
         const auto id = uuids::to_string(_uuidGenerator());
         s.add([conn, id]() { conn->Unsubscribe(id); });
         conn->Subscribe(id, req, s);

@@ -12,11 +12,11 @@ using namespace boost::asio::ip;
 using namespace boost::beast;
 namespace beast = boost::beast;
 
-HttpsStream::HttpsStream(const any_io_executor& ex, const optional<string>& caCert)
-    : HttpsStream(ex, make_unique<ssl::context>(CreateSslContext(caCert))) {}
+HttpsStream::HttpsStream(const any_io_executor& ex, const Url& url, const optional<string>& caCert)
+    : HttpsStream(ex, url, CreateSslContext(caCert)) {}
 
-HttpsStream::HttpsStream(const any_io_executor& ex, unique_ptr<ssl::context> ctx)
-    : HttpStreamBase(ssl_stream<tcp_stream>(ex, *ctx)),
+HttpsStream::HttpsStream(const any_io_executor& ex, const Url& url, unique_ptr<ssl::context> ctx)
+    : HttpStreamBase(ssl_stream<tcp_stream>(ex, *ctx), url),
       _ctx(std::move(ctx)) {}
 
 awaitable<void> HttpsStream::Connect(const string& host, const string& port) {

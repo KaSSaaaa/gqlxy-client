@@ -1,8 +1,9 @@
 #pragma once
-#include "gqlxy/internal/url.h"
-#include "i_ws_stream.h"
 
 #include <boost/beast/websocket.hpp>
+#include <gqlxy/internal/url.h>
+#include <gqlxy/internal/ws/i_ws_stream.h>
+#include <gqlxy/link.h>
 #include <map>
 
 namespace gqlxy::internal {
@@ -34,7 +35,7 @@ public:
 
 protected:
     WsStreamBase(
-        const Url& url, const std::map<std::string, std::string>& headers,
+        const Url& url, const Headers& headers,
         boost::beast::websocket::stream<Stream> ws)
         : _url(url),
           _headers(headers),
@@ -53,7 +54,7 @@ protected:
     }
 
     Url _url;
-    std::map<std::string, std::string> _headers;
+    Headers _headers;
     boost::beast::websocket::stream<Stream> _ws;
     boost::beast::lowest_layer_type<boost::beast::websocket::stream<Stream>>& _lowWs;
 };

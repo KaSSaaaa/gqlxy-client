@@ -29,7 +29,7 @@ WsConnectionContext::~WsConnectionContext() {
     Stop();
 }
 
-void WsConnectionContext::Subscribe(const string& id, const GraphQLRequest& req, const subscriber<GraphQLResult>& sub) {
+void WsConnectionContext::Subscribe(const string& id, const GraphQLRequest& req, const subscriber<GraphQLResponse>& sub) {
     post(AsioContext::Get(), [self = shared_from_this(), id, req, sub]() {
         if (self->_initError) return sub.on_error(self->_initError);
         if (self->_stopping) return sub.on_completed();
@@ -61,7 +61,7 @@ void WsConnectionContext::StopOnContext() {
 }
 
 void WsConnectionContext::OnSubscribe(
-    const string& id, const GraphQLRequest& req, const subscriber<GraphQLResult>& sub) {
+    const string& id, const GraphQLRequest& req, const subscriber<GraphQLResponse>& sub) {
     AddSub(id, req, sub);
     switch (_state) {
         case ConnectionState::Idle: TransitionTo(ConnectionState::Connecting); break;
@@ -122,7 +122,7 @@ void WsConnectionContext::TransitionTo(ConnectionState state) {
     }
 }
 
-void WsConnectionContext::AddSub(const string& id, const GraphQLRequest& req, const subscriber<GraphQLResult>& sub) {
+void WsConnectionContext::AddSub(const string& id, const GraphQLRequest& req, const subscriber<GraphQLResponse>& sub) {
     _subs.emplace(id, WsSubscription {req, sub});
 }
 

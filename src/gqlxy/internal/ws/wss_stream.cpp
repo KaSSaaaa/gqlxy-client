@@ -10,10 +10,10 @@ using namespace boost::asio::ssl;
 using namespace boost::beast;
 namespace beast = boost::beast;
 
-WssStream::WssStream(const Url& url, const map<string, string>& headers, const optional<string>& caCert)
-    : WssStream(url, headers, make_unique<context>(CreateSslContext(caCert))) {}
+WssStream::WssStream(const Url& url, const Headers& headers, const optional<string>& caCert)
+    : WssStream(url, headers, CreateSslContext(caCert)) {}
 
-WssStream::WssStream(const Url& url, const map<string, string>& headers, unique_ptr<context> ctx)
+WssStream::WssStream(const Url& url, const Headers& headers, unique_ptr<context> ctx)
     : WsStreamBase(url, headers, websocket::stream<stream<tcp_stream>>(AsioContext::Get(), *ctx)),
       _ctx(std::move(ctx)) {}
 

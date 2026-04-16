@@ -29,8 +29,8 @@ static GraphQLError ParseError(const json& e) {
     };
 }
 
-GraphQLResult ParseJsonPayload(const json& body) {
-    return GraphQLResult{
+GraphQLResponse ParseJsonPayload(const json& body) {
+    return GraphQLResponse{
         .data = make_optional_if(body.contains("data") && !body["data"].is_null(), [&body]() {
             return body["data"];
         }),
@@ -42,14 +42,14 @@ GraphQLResult ParseJsonPayload(const json& body) {
     };
 }
 
-GraphQLResult ParseJsonResponse(const string& body) {
+GraphQLResponse ParseJsonResponse(const string& body) {
     return ParseJsonPayload(json::parse(body));
 }
 
-GraphQLResult MapHttpError(status status, string_view reason) {
+GraphQLResponse MapHttpError(status status, string_view reason) {
     stringstream statusStream;
     statusStream << "HTTP " << status << " " << reason;
-    return GraphQLResult{
+    return GraphQLResponse{
         .errors = GraphQLErrors{
             {.message = statusStream.str()}
         },
@@ -76,7 +76,7 @@ static auto ToSseLines(const string& text) {
     }));
 }
 
-vector<GraphQLResult> ParseSseBody(const string& body) {
+vector<GraphQLResponse> ParseSseBody(const string& body) {
     return flat_map(chunk_by_blank(ToSseLines(body)), ParseSseBlock);
 }
 
@@ -92,7 +92,7 @@ SseDrain DrainSseEvents(const string& pending) {
     const auto complete = pending.substr(0, last_sep + 2);
     const auto remaining = pending.substr(last_sep + 2);
 
-    vector<GraphQLResult> results;
+    vector<GraphQLResponse> results;
     bool completed = false;
     for (const auto& block : chunk_by_blank(ToSseLines(complete))) {
         if (IsSseComplete(block)) {

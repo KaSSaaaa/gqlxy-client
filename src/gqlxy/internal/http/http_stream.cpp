@@ -9,7 +9,7 @@ using namespace boost::asio;
 using namespace boost::asio::ip;
 using namespace boost::beast;
 
-HttpStream::HttpStream(const any_io_executor& ex) : HttpStreamBase(tcp_stream(ex)) {}
+HttpStream::HttpStream(const any_io_executor& ex, const Url& url) : HttpStreamBase(tcp_stream(ex), url) {}
 
 awaitable<void> HttpStream::Connect(const string& host, const string& port) {
     co_await _stream.async_connect(

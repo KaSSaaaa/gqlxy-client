@@ -19,7 +19,7 @@ TEST_F(InMemoryCacheTest, WriteAndRead) {
     GraphQLRequest req {
         .query = "{ __typename }"
     };
-    GraphQLResult res {
+    GraphQLResponse res {
         .data = json {
             {"__typename", "Query"}
         }
@@ -34,7 +34,7 @@ TEST_F(InMemoryCacheTest, Evict) {
     GraphQLRequest req {
         .query = "{ __typename }"
     };
-    _cache.Write(req, GraphQLResult{.data = json::object()});
+    _cache.Write(req, GraphQLResponse{.data = json::object()});
     _cache.Evict(req);
     EXPECT_FALSE(_cache.Read(req).has_value());
 }
@@ -52,7 +52,7 @@ TEST_F(InMemoryCacheTest, VariablesDifferentiateKeys) {
             {"id", "2"}
         }
     };
-    _cache.Write(req1, GraphQLResult{
+    _cache.Write(req1, GraphQLResponse{
         .data = {
             {"user", {
                 {"name", "Alice"}
@@ -80,7 +80,7 @@ TEST_F(NormalizedCacheTest, NormalizesNestedObjectWithId) {
         )"
     };
 
-    _cache.Write(req, GraphQLResult{
+    _cache.Write(req, GraphQLResponse{
         .data = json {
             {"user", {
                 {"__typename", "User"},
@@ -109,7 +109,7 @@ TEST_F(NormalizedCacheTest, ReadReconstructsFromNormalizedStore) {
         )"
     };
 
-    _cache.Write(req, GraphQLResult{
+    _cache.Write(req, GraphQLResponse{
         .data = json {
             {"user", {
                 {"__typename", "User"},

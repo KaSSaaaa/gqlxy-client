@@ -9,6 +9,6 @@ SplitLink::SplitLink(
       _left(left),
       _right(right) {}
 
-Observable<GraphQLResult> SplitLink::Execute(const GraphQLRequest& request) {
+Observable<GraphQLResponse> SplitLink::Execute(const GraphQLRequest& request) {
     return _condition(request) ? _left->Execute(request) : _right->Execute(request);
 }

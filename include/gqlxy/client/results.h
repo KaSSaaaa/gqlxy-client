@@ -16,7 +16,7 @@ struct GraphQLError {
 
 using GraphQLErrors = std::vector<GraphQLError>;
 
-struct GraphQLResult {
+struct GraphQLResponse {
     std::optional<nlohmann::json> data;
     std::optional<GraphQLErrors> errors;
 };

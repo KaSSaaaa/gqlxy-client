@@ -15,7 +15,7 @@ using namespace boost::beast::websocket;
 using tcp = net::ip::tcp;
 
 WsTransport::WsTransport(
-    const Url& url, const map<string, string>& headers, const WsTransportCallbacks& cbs, const optional<string>& caCert)
+    const Url& url, const Headers& headers, const WsTransportCallbacks& cbs, const optional<string>& caCert)
     : _url(url),
       _headers(headers),
       _cbs(cbs),

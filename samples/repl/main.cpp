@@ -191,7 +191,7 @@ int main(int argc, char* argv[]) {
         screen.PostEvent(Event::Custom);
     };
 
-    auto format_result = [](const GraphQLResult& r) -> string {
+    auto format_result = [](const GraphQLResponse& r) -> string {
         string out;
         if (r.data) out += r.data->dump(2);
         if (r.errors)
@@ -235,7 +235,7 @@ int main(int argc, char* argv[]) {
             : client.Query({.query = req.query, .variables = req.variables});
 
         obs.subscribe(
-            [&](const GraphQLResult& r) { append({LogEntry::Kind::Data, -1, format_result(r)}); },
+            [&](const GraphQLResponse& r) { append({LogEntry::Kind::Data, -1, format_result(r)}); },
             [&](exception_ptr ep) {
                 string msg;
                 try { rethrow_exception(ep); } catch (const exception& e) { msg = e.what(); }

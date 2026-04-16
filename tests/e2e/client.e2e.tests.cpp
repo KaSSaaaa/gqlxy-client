@@ -367,7 +367,7 @@ class SpyLink : public Link {
 public:
     explicit SpyLink(shared_ptr<Link> inner) : _inner(std::move(inner)) {}
 
-    Observable<GraphQLResult> Execute(const GraphQLRequest& request) override {
+    Observable<GraphQLResponse> Execute(const GraphQLRequest& request) override {
         ++_callCount;
         return _inner->Execute(request);
     }

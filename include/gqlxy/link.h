@@ -5,16 +5,18 @@
 
 namespace gqlxy {
 
+using Headers = std::map<std::string, std::string>;
+
 struct LinkOptions {
     std::string url;
-    std::map<std::string, std::string> headers;
+    Headers headers;
     std::optional<std::string> caCert;
 };
 
 class Link {
 public:
     virtual ~Link() = default;
-    virtual Observable<GraphQLResult> Execute(const GraphQLRequest& request) = 0;
+    virtual Observable<GraphQLResponse> Execute(const GraphQLRequest& request) = 0;
 };
 
 }

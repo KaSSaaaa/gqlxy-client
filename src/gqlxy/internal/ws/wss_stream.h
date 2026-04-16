@@ -4,7 +4,7 @@
 
 #include <boost/beast/core/tcp_stream.hpp>
 #include <boost/beast/ssl.hpp>
-#include <memory>
+#include <gqlxy/internal/ssl_context.h>
 #include <optional>
 
 namespace gqlxy::internal {
@@ -12,7 +12,7 @@ namespace gqlxy::internal {
 class WssStream : public WsStreamBase<boost::asio::ssl::stream<boost::beast::tcp_stream>> {
 public:
     WssStream(
-        const Url& url, const std::map<std::string, std::string>& headers,
+        const Url& url, const Headers& headers,
         const std::optional<std::string>& caCert = std::nullopt);
 
 protected:
@@ -20,7 +20,7 @@ protected:
 
 private:
     WssStream(
-        const Url& url, const std::map<std::string, std::string>& headers,
+        const Url& url, const Headers& headers,
         std::unique_ptr<boost::asio::ssl::context> ctx);
 
     std::unique_ptr<boost::asio::ssl::context> _ctx;

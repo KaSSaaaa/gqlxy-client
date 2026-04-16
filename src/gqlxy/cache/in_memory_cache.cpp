@@ -147,7 +147,7 @@ json NormalizeValue(
     return data;
 }
 
-void InMemoryCache::Write(const GraphQLRequest& request, const GraphQLResult& result) {
+void InMemoryCache::Write(const GraphQLRequest& request, const GraphQLResponse& result) {
     if (!result.data) return;
 
     auto parsed = ParseQuery(request.query);
@@ -280,7 +280,7 @@ json DenormalizeValue(
     return storeValue;
 }
 
-optional<GraphQLResult> InMemoryCache::Read(const GraphQLRequest& request) {
+optional<GraphQLResponse> InMemoryCache::Read(const GraphQLRequest& request) {
     auto parsed = ParseQuery(request.query);
 
     shared_lock lock(_mutex);
@@ -294,7 +294,7 @@ optional<GraphQLResult> InMemoryCache::Read(const GraphQLRequest& request) {
 
     if (data.is_null()) return nullopt;
 
-    return GraphQLResult{.data = data};
+    return GraphQLResponse{.data = data};
 }
 
 void InMemoryCache::Evict(const GraphQLRequest& request) {

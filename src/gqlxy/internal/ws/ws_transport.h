@@ -1,12 +1,11 @@
 #pragma once
 
-#include <gqlxy/internal/url.h>
-#include <gqlxy/internal/ws/i_ws_stream.h>
-
 #include <boost/beast/core.hpp>
-
 #include <deque>
 #include <functional>
+#include <gqlxy/internal/url.h>
+#include <gqlxy/internal/ws/i_ws_stream.h>
+#include <gqlxy/link.h>
 #include <map>
 #include <memory>
 #include <optional>
@@ -23,7 +22,7 @@ struct WsTransportCallbacks {
 class WsTransport : public std::enable_shared_from_this<WsTransport> {
 public:
     WsTransport(
-        const Url& url, const std::map<std::string, std::string>& headers, const WsTransportCallbacks& cbs,
+        const Url& url, const Headers& headers, const WsTransportCallbacks& cbs,
         const std::optional<std::string>& caCert = std::nullopt);
 
     void Connect();
@@ -32,7 +31,7 @@ public:
 
 private:
     Url _url;
-    std::map<std::string, std::string> _headers;
+    Headers _headers;
     WsTransportCallbacks _cbs;
     std::optional<std::string> _caCert;
 
