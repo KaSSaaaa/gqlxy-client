@@ -46,7 +46,7 @@ private:
     }
 
     boost::beast::http::request<boost::beast::http::string_body> BuildRequest(const GraphQLRequest& request, const Headers& headers) {
-        boost::beast::http::request<boost::beast::http::string_body> req { boost::beast::http::verb::post, _url.target, 11};
+        boost::beast::http::request<boost::beast::http::string_body> req {boost::beast::http::verb::post, _url.target, 11};
         req.set(boost::beast::http::field::host, _url.host);
         std::string accept = "application/json";
         req.set(boost::beast::http::field::content_type, accept);
@@ -114,31 +114,31 @@ private:
         co_await boost::beast::http::async_read_header(_stream, _buf, _parser, boost::asio::use_awaitable);
         const auto& response = _parser.get().base();
         if (response.result() < boost::beast::http::status::bad_request) co_return true;
-        sub.on_next(MapHttpError(response.result(), response.reason()));
+        sub.on_next(ConvertHttpError(response.result(), response.reason()));
         sub.on_completed();
         co_return false;
     }
 
     boost::asio::awaitable<void> OnSseResponse(const rxcpp::subscriber<GraphQLResponse>& sub) {
-        std::string pending;
-        size_t processed = 0;
+        std::string payload;
         while (!_parser.is_done() && sub.is_subscribed()) {
             co_await ReadAsync();
-            if (const auto& body = _parser.get().body(); body.size() > processed) {
-                pending += body.substr(processed);
-                processed = body.size();
-                auto [results, remaining, completed] = ParseSseEvents(pending);
-                pending = std::move(remaining);
+            if (auto& body = _parser.get().body(); !body.empty()) {
+                payload += body;
+                body.clear();
+                auto [results, remaining, completed] = ParseSseEvents(payload);
+                payload = std::move(remaining);
                 for (const auto& result : results)
                     sub.on_next(result);
-                if (completed) co_return sub.on_completed();
+
+                if (completed) co_return;
             }
         }
     }
 
     boost::asio::awaitable<void> OnResponse(const rxcpp::subscriber<GraphQLResponse>& sub) {
         co_await ReadAsync();
-        sub.on_next(ParseJsonResponse(_parser.get().body()));
+        sub.on_next(ParseJsonPayload(_parser.get().body()));
     }
 
     boost::asio::awaitable<void> ReadAsync() {

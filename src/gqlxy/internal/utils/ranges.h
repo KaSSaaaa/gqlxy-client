@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <optional>
 #include <ranges>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -18,6 +19,17 @@ auto to_vector(R&& r) {
 template<std::ranges::input_range R>
 auto to_string(R&& r) {
     return std::string(std::ranges::begin(r), std::ranges::end(r));
+}
+
+template<typename T>
+concept OStreamable = requires(std::ostream& os, const T& v) { os << v; };
+
+template<OStreamable T>
+    requires (!std::ranges::input_range<T>)
+std::string to_string(const T& value) {
+    std::ostringstream ss;
+    ss << value;
+    return ss.str();
 }
 
 template<std::ranges::input_range R>

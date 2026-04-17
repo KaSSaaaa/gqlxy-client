@@ -52,7 +52,7 @@ Internal implementation lives in `src/gqlxy/`. boost::beast is a PRIVATE depende
 
 **Internal: WS connection** — `WsConnectionContext` manages WebSocket lifecycle with `enum class ConnectionState { Idle, Connecting, Connected, Reconnecting }`. All state logic runs on the ASIO thread; public methods post to it.
 
-**Internal: HTTP streaming** — `IHttpStream` exposes `ReadHeader` + `ReadBodyChunk` (not a single `Read`). `HttpLink` reads the header first, detects `Content-Type: text/event-stream`, then either drains a full JSON body or loops with `DrainSseEvents()` emitting results incrementally.
+**Internal: HTTP streaming** — `IHttpStream` exposes `ReadHeader` + `ReadBodyChunk` (not a single `Read`). `HttpLink` reads the header first, detects `Content-Type: text/event-stream`, then either drains a full JSON body or loops with `ParseSseEvents()` emitting results incrementally.
 
 ## Key Conventions
 

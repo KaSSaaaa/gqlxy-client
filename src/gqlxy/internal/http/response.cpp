@@ -1,10 +1,8 @@
 #include <gqlxy/internal/http/response.h>
-
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/status.hpp>
 #include <gqlxy/internal/utils/ranges.h>
-#include <sstream>
-
+#include <gqlxy/internal/utils/optional.h>
 #include <nlohmann/json.hpp>
 
 using namespace std;
@@ -13,20 +11,8 @@ using namespace boost::beast::http;
 
 namespace gqlxy::internal {
 
-static vector<string> ParseErrorPath(const json& e) {
-    if (!e.contains("path") || !e["path"].is_array()) return {};
-    return to_vector(
-        ranges::subrange(e["path"].begin(), e["path"].end()) | views::transform([](const json& p) {
-            return p.is_string() ? p.get<string>() : p.dump();
-        })
-    );
-}
-
-static GraphQLError ParseError(const json& e) {
-    return {
-        .message = e.value("message", "Unknown error"),
-        .path = ParseErrorPath(e)
-    };
+GraphQLResponse ParseJsonPayload(const string& body) {
+    return ParseJsonPayload(json::parse(body));
 }
 
 GraphQLResponse ParseJsonPayload(const json& body) {
@@ -36,73 +22,62 @@ GraphQLResponse ParseJsonPayload(const json& body) {
         }),
         .errors = make_optional_if(body.contains("errors") && body["errors"].is_array(), [&body]() {
             return to_vector(
-                ranges::subrange(body["errors"].begin(), body["errors"].end()) | views::transform(ParseError)
+                ranges::subrange(body["errors"].begin(), body["errors"].end())
+                    | views::transform([](const auto& error) {
+                        return GraphQLError {
+                            .message = error.value("message", "Unknown error"),
+                            .path = make_optional_if(error.contains("path") && error["path"].is_array(), [&]() {
+                                return to_vector(
+                                    ranges::subrange(error["path"].begin(), error["path"].end())
+                                        | views::transform([](const json& p) {
+                                            return p.is_string() ? p.get<string>() : p.dump();
+                                        })
+                                );
+                            }).value_or(vector<string>{})
+                        };
+                    })
             );
         }),
     };
 }
 
-GraphQLResponse ParseJsonResponse(const string& body) {
-    return ParseJsonPayload(json::parse(body));
-}
-
-GraphQLResponse MapHttpError(status status, string_view reason) {
-    stringstream statusStream;
-    statusStream << "HTTP " << status << " " << reason;
+GraphQLResponse ConvertHttpError(status status, string_view reason) {
     return GraphQLResponse{
         .errors = GraphQLErrors{
-            {.message = statusStream.str()}
+            {.message = format("HTTP {} {}", to_string(status), reason)}
         },
     };
 }
 
-static vector<GraphQLResult> ParseSseBlock(const vector<string>& block) {
-    auto event = find_optional(block, [](const auto& l) { return l.starts_with("event:"); });
-    if (!event || trim(event->substr(6)) != "next") return {};
-    auto data = find_optional(block, [](const auto& l) { return l.starts_with("data:"); });
-    if (!data) return {};
-    return {ParseJsonResponse(trim(data->substr(5)))};
+static vector<GraphQLResponse> ParseSseBlock(const vector<string>& block) {
+    if (and_then(find_optional(block, [](const auto& l) { return l.starts_with("event:"); }), [](const auto& event) {
+        return trim(event.substr(6));
+    }) != "next")
+        return {};
+
+    return and_then(find_optional(block, [](const auto& l) { return l.starts_with("data:"); }), [](const auto& data) {
+        return make_optional(vector{ParseJsonPayload(json::parse(string(trim(data.substr(5)))))});
+    }).value_or(vector<GraphQLResponse>{});
 }
 
-static bool IsSseComplete(const vector<string>& block) {
-    auto event = find_optional(block, [](const auto& l) { return l.starts_with("event:"); });
-    return event && trim(event->substr(6)) == "complete";
-}
+SseEvents ParseSseEvents(const string& payload) {
+    auto normalized = payload;
+    erase(normalized, '\r');
+    auto last = ranges::find_end(normalized, "\n\n"sv);
+    if (last.empty()) return {{}, normalized, false};
 
-static auto ToSseLines(const string& text) {
-    return to_vector(split(text, '\n') | views::transform([](string line) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        return line;
-    }));
-}
+    auto chunks = chunk_by_blank(split(string(normalized.begin(), last.end()), '\n'));
+    auto complete = ranges::find_if(chunks, [](const auto& block) {
+        return and_then(find_optional(block, [](const auto& l) { return l.starts_with("event:"); }), [](const auto& event) {
+            return event.substr(6) == "complete";
+        });
+    });
 
-vector<GraphQLResponse> ParseSseBody(const string& body) {
-    return flat_map(chunk_by_blank(ToSseLines(body)), ParseSseBlock);
-}
-
-SseDrain DrainSseEvents(const string& pending) {
-    size_t last_sep = string::npos;
-    size_t pos = 0;
-    while ((pos = pending.find("\n\n", pos)) != string::npos) {
-        last_sep = pos;
-        pos += 2;
-    }
-    if (last_sep == string::npos) return {{}, pending, false};
-
-    const auto complete = pending.substr(0, last_sep + 2);
-    const auto remaining = pending.substr(last_sep + 2);
-
-    vector<GraphQLResponse> results;
-    bool completed = false;
-    for (const auto& block : chunk_by_blank(ToSseLines(complete))) {
-        if (IsSseComplete(block)) {
-            completed = true;
-            break;
-        }
-        auto r = ParseSseBlock(block);
-        results.insert(results.end(), r.begin(), r.end());
-    }
-    return {std::move(results), remaining, completed};
+    return {
+        flat_map(ranges::subrange(chunks.begin(), complete), ParseSseBlock),
+        string(last.end(), normalized.end()),
+        complete != chunks.end()
+    };
 }
 
 }
