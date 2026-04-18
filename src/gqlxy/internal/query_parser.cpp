@@ -78,7 +78,7 @@ nlohmann::json ParseArguments(const peg::ast_node& node) {
     return args;
 }
 
-vector<Selection> ParseSelections(const peg::ast_node& node);
+vector<ParsedSelection> ParseSelections(const peg::ast_node& node);
 
 SelectionField ParseField(const peg::ast_node& node) {
     SelectionField field;
@@ -113,8 +113,8 @@ InlineFragment ParseInlineFragment(const peg::ast_node& node) {
     return frag;
 }
 
-vector<Selection> ParseSelections(const peg::ast_node& node) {
-    vector<Selection> result;
+vector<ParsedSelection> ParseSelections(const peg::ast_node& node) {
+    vector<ParsedSelection> result;
     for (const auto& child : node.children) {
         if (!child) continue;
         if (child->is_type<peg::field>())

@@ -91,4 +91,43 @@ inline auto chunk_by_blank(const std::vector<std::string>& lines) -> std::vector
     return blocks;
 }
 
+template<typename Delim>
+    requires requires(std::string s, Delim d) { s += d; }
+struct JoinWithClosure {
+    Delim _delim;
+
+    template<std::ranges::input_range R>
+        requires std::convertible_to<std::ranges::range_value_t<R>, std::string_view>
+    std::string operator()(R&& r) const {
+        std::string result;
+        bool first = true;
+        for (const auto& elem : r) {
+            if (!first) result += _delim;
+            result += std::string_view(elem);
+            first = false;
+        }
+        return result;
+    }
+};
+
+template<std::ranges::input_range R, typename Delim>
+    requires std::convertible_to<std::ranges::range_value_t<R>, std::string_view>
+          && requires(std::string s, Delim d) { s += d; }
+std::string operator|(R&& r, const JoinWithClosure<Delim>& c) {
+    return c(std::forward<R>(r));
+}
+
+template<typename Delim>
+    requires requires(std::string s, Delim d) { s += d; }
+auto join_with(Delim&& delim) {
+    return JoinWithClosure<std::decay_t<Delim>>{std::forward<Delim>(delim)};
+}
+
+template<std::ranges::input_range R, typename Delim>
+    requires std::convertible_to<std::ranges::range_value_t<R>, std::string_view>
+          && requires(std::string s, Delim d) { s += d; }
+std::string join_with(R&& r, Delim&& delim) {
+    return join_with(std::forward<Delim>(delim))(std::forward<R>(r));
+}
+
 }

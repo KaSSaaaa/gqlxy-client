@@ -8,6 +8,10 @@
 #include <unordered_map>
 
 namespace gqlxy {
+namespace internal {
+struct ParsedSelection;
+struct FragmentDefinition;
+}
 
 class InMemoryCache : public Cache {
 public:
@@ -19,10 +23,10 @@ public:
     void Evict(const GraphQLRequest& request) override;
 
     void EvictEntity(const std::string& entityId);
-    nlohmann::json Extract() const;
+    nlohmann::json Extract();
 
 private:
-    mutable std::shared_mutex _mutex;
+    std::mutex _mutex;
     std::unordered_map<std::string, nlohmann::json> _entityStore;
     InMemoryCacheOptions _options;
 
@@ -30,6 +34,21 @@ private:
     std::vector<std::string> KeyFieldsFor(const std::string& typeName) const;
 
     static std::string RootKey(const GraphQLRequest& request);
+
+    nlohmann::json NormalizeObject(
+        const nlohmann::json& obj, const std::vector<internal::ParsedSelection>& selections,
+        const std::vector<internal::FragmentDefinition>& fragments, const nlohmann::json& variables);
+    nlohmann::json NormalizeValue(
+        const nlohmann::json& data, const std::vector<internal::ParsedSelection>& selections,
+        const std::vector<internal::FragmentDefinition>& fragments, const nlohmann::json& variables);
+
+    nlohmann::json DenormalizeValue(
+        const nlohmann::json& storeValue, const std::vector<internal::ParsedSelection>& selections,
+        const std::vector<internal::FragmentDefinition>& fragments, const nlohmann::json& variables);
+
+    nlohmann::json DenormalizeObject(
+        const nlohmann::json& entity, const std::vector<internal::ParsedSelection>& selections,
+        const std::vector<internal::FragmentDefinition>& fragments, const nlohmann::json& variables);
 };
 
 }
