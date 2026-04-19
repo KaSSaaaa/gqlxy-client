@@ -2,16 +2,14 @@
 
 #include <gqlxy/cache.h>
 #include <gqlxy/cache/type_policy.h>
+#include <gqlxy/parser/ast/fragments.h>
+#include <gqlxy/parser/ast/selection.h>
 #include <nlohmann/json.hpp>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
 
 namespace gqlxy {
-namespace internal {
-struct ParsedSelection;
-struct FragmentDefinition;
-}
 
 class InMemoryCache : public Cache {
 public:
@@ -36,19 +34,19 @@ private:
     static std::string RootKey(const GraphQLRequest& request);
 
     nlohmann::json NormalizeObject(
-        const nlohmann::json& obj, const std::vector<internal::ParsedSelection>& selections,
-        const std::vector<internal::FragmentDefinition>& fragments, const nlohmann::json& variables);
+        const nlohmann::json& obj, const std::vector<parser::Selection>& selections,
+        const parser::Fragments& fragments, const nlohmann::json& variables);
     nlohmann::json NormalizeValue(
-        const nlohmann::json& data, const std::vector<internal::ParsedSelection>& selections,
-        const std::vector<internal::FragmentDefinition>& fragments, const nlohmann::json& variables);
+        const nlohmann::json& data, const std::vector<parser::Selection>& selections,
+        const parser::Fragments& fragments, const nlohmann::json& variables);
 
     nlohmann::json DenormalizeValue(
-        const nlohmann::json& storeValue, const std::vector<internal::ParsedSelection>& selections,
-        const std::vector<internal::FragmentDefinition>& fragments, const nlohmann::json& variables);
+        const nlohmann::json& storeValue, const std::vector<parser::Selection>& selections,
+        const parser::Fragments& fragments, const nlohmann::json& variables);
 
     nlohmann::json DenormalizeObject(
-        const nlohmann::json& entity, const std::vector<internal::ParsedSelection>& selections,
-        const std::vector<internal::FragmentDefinition>& fragments, const nlohmann::json& variables);
+        const nlohmann::json& entity, const std::vector<parser::Selection>& selections,
+        const parser::Fragments& fragments, const nlohmann::json& variables);
 };
 
 }

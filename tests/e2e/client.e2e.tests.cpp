@@ -19,6 +19,7 @@ using namespace std;
 using namespace std::chrono;
 using namespace testing;
 using namespace gqlxy;
+using namespace gqlxy::parser;
 using namespace gqlxy::e2e;
 
 struct LinkParam {
@@ -39,7 +40,7 @@ static const vector<LinkParam> LinkParams {
     {"Split",[] {
         return Client({
             .link = make_shared<SplitLink>(
-                [](const GraphQLRequest& req) { return req.type != OperationType::Subscription; },
+                [](const GraphQLRequest& req) { return req.type._value != OperationType::SUBSCRIPTION; },
                 make_shared<HttpLink>(HttpLinkOptions {.url = ServerUrl}),
                 make_shared<WsLink>(WsLinkOptions {.url = WsServerUrl})
             )
@@ -48,7 +49,7 @@ static const vector<LinkParam> LinkParams {
     {"SplitSsl", [] {
         return Client({
             .link = make_shared<SplitLink>(
-                [](const GraphQLRequest& req) { return req.type != OperationType::Subscription; },
+                [](const GraphQLRequest& req) { return req.type._value != OperationType::SUBSCRIPTION; },
                 make_shared<HttpLink>(HttpLinkOptions {.url = HttpsServerUrl, .caCert = CaCert}),
                 make_shared<WsLink>(WsLinkOptions {.url = WssServerUrl, .caCert = CaCert})
             )

@@ -13,14 +13,14 @@
     "boost-uuid",
     "openssl",
     "cppgraphqlgen",
-    "pegtl"
+    "pegtl",
+    "better-enums"
   ],
   "features": {
     "tests": {
       "description": "Build and run the test suite",
       "dependencies": [
         "gtest",
-        "better-enums",
         "oatpp",
         "oatpp-websocket",
         "oatpp-openssl"

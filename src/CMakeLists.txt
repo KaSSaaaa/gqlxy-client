@@ -16,12 +16,12 @@ target_link_libraries(gqlxy_client
 	PUBLIC
 		rxcpp
 		nlohmann_json::nlohmann_json
+		gqlxy::core
 	PRIVATE
 		Boost::beast
 		Boost::url
 		OpenSSL::SSL
 		OpenSSL::Crypto
-		cppgraphqlgen::graphqlpeg
 )
 
 add_library(gqlxy::client ALIAS gqlxy_client)

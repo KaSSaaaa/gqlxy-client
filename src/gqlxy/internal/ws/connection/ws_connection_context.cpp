@@ -1,11 +1,11 @@
 #include <gqlxy/internal/ws/connection/ws_connection_context.h>
-
+#include <gqlxy/utils/optional.h>
 #include <boost/asio/post.hpp>
 #include <future>
 #include <gqlxy/internal/asio_context.h>
 #include <gqlxy/internal/http/response.h>
 #include <gqlxy/internal/http/serialization.h>
-#include <gqlxy/internal/utils/ranges.h>
+#include <gqlxy/utils/ranges.h>
 #include <gqlxy/internal/ws/ws_transport.h>
 #include <nlohmann/json.hpp>
 
@@ -13,9 +13,12 @@ using namespace std;
 using namespace std::chrono;
 using namespace gqlxy;
 using namespace gqlxy::internal;
+using namespace gqlxy::utils;
 using namespace boost::asio;
 using namespace rxcpp;
 using nlohmann::json;
+
+//TODO simplify
 
 WsConnectionContext::WsConnectionContext(const WsLinkOptions& opts) : _reconnectTimer(AsioContext::Get()), _opts(opts) {
     try {
@@ -38,7 +41,9 @@ void WsConnectionContext::Subscribe(const string& id, const GraphQLRequest& req,
 }
 
 void WsConnectionContext::Unsubscribe(const string& id) {
-    post(AsioContext::Get(), [self = shared_from_this(), id]() { self->OnUnsubscribe(id); });
+    post(AsioContext::Get(), [self = shared_from_this(), id]() {
+        self->OnUnsubscribe(id);
+    });
 }
 
 void WsConnectionContext::Stop() {
@@ -47,15 +52,17 @@ void WsConnectionContext::Stop() {
     promise<void> done;
     post(AsioContext::Get(), [this, &done]() {
         StopOnContext();
-        post(AsioContext::Get(), [&done]() { done.set_value(); });
+        post(AsioContext::Get(), [&done]() {
+            done.set_value();
+        });
     });
     done.get_future().get();
 }
 
 void WsConnectionContext::StopOnContext() {
     _reconnectTimer.cancel();
-    for (const auto& [_, sub] : _subs)
-        sub.subscriber.on_completed();
+    for (const auto& [_, subscriber] : _subs | views::values)
+        subscriber.on_completed();
     _subs.clear();
     if (_transport) _transport->Close();
 }
@@ -71,7 +78,11 @@ void WsConnectionContext::OnSubscribe(
 }
 
 void WsConnectionContext::OnUnsubscribe(const string& id) {
-    if (_state == ConnectionState::Connected && !_stopping) Send({{"type", "complete"}, {"id", id}});
+    if (_state == ConnectionState::Connected && !_stopping)
+        Send({
+            {"type", "complete"},
+            {"id", id}
+        });
     RemoveSub(id);
     if (_state == ConnectionState::Reconnecting && !HasSubs()) {
         CancelReconnect();
@@ -80,7 +91,10 @@ void WsConnectionContext::OnUnsubscribe(const string& id) {
 }
 
 void WsConnectionContext::OnTransportConnected() {
-    if (_state == ConnectionState::Connecting) Send({{"type", "connection_init"}});
+    if (_state == ConnectionState::Connecting)
+        Send({
+            {"type", "connection_init"}
+        });
 }
 
 void WsConnectionContext::OnTransportMessage(const string& raw) {
@@ -187,25 +201,22 @@ void WsConnectionContext::SendSubscribe(const string& id, const GraphQLRequest& 
 
 void WsConnectionContext::Dispatch(const string& raw) {
     try {
-        const auto msg = json::parse(raw);
-        const auto type = msg.value("type", "");
-        const auto id = msg.value("id", "");
-        if (type == "next") {
-            if (auto it = _subs.find(id); it != _subs.end())
-                it->second.subscriber.on_next(ParseJsonPayload(msg["payload"]));
-        } else if (type == "complete") {
-            CompleteSub(id);
-        } else if (type == "error") {
-            if (auto it = _subs.find(id); it != _subs.end()) {
-                it->second.subscriber.on_next(ParseJsonPayload({
+        auto msg = json::parse(raw);
+        auto type = msg.value("type", "");
+        auto id = msg.value("id", "");
+
+        if (type == "complete") return CompleteSub(id);
+        if (type == "ping") return Send({{"type", "pong"}});
+
+        if (const auto sub = and_then(to_optional(_subs, _subs.find(id)), [&](const auto& it) {
+            return make_optional(it.second.subscriber);
+        }); sub.has_value()) {
+            sub->on_next(type == "next"
+                ? ParseJsonPayload(msg["payload"])
+                : ParseJsonPayload({
                     {"errors", msg["payload"]}
                 }));
-                CompleteSub(id);
-            }
-        } else if (type == "ping") {
-            Send({
-                {"type", "pong"}
-            });
+            if (type == "error") CompleteSub(id);
         }
     } catch (...) {
     }

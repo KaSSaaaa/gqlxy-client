@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 using namespace gqlxy;
+using namespace gqlxy::parser;
 using namespace nlohmann;
 
 class InMemoryCacheTest : public ::testing::Test {
@@ -174,7 +175,7 @@ TEST_F(NormalizedCacheTest, MutationUpdatesEntityAndAffectsSubsequentReads) {
 
     _cache.Write({
         .query = mutation,
-        .type = OperationType::Mutation
+        .type = OperationType::MUTATION
     }, {
         .data = json{
             {"updateUser", {

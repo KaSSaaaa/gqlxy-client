@@ -22,7 +22,7 @@ public:
         return rxcpp::observable<>::create<GraphQLResponse>([this, request, headers](auto sub) {
             boost::asio::co_spawn(
                 boost::beast::get_lowest_layer(_stream).get_executor(),
-                Send(BuildRequest(request, headers), request.type == OperationType::Subscription, std::move(sub)),
+                Send(BuildRequest(request, headers), request.type._value == parser::OperationType::SUBSCRIPTION, std::move(sub)),
                 boost::asio::detached);
         });
     }
@@ -50,7 +50,7 @@ private:
         req.set(boost::beast::http::field::host, _url.host);
         std::string accept = "application/json";
         req.set(boost::beast::http::field::content_type, accept);
-        if (request.type == OperationType::Subscription) accept += ",text/event-stream";
+        if (request.type._value == parser::OperationType::SUBSCRIPTION) accept += ",text/event-stream";
         req.set(boost::beast::http::field::accept, accept);
         req.set(boost::beast::http::field::user_agent, "gqlxy-client/0.1");
         for (const auto& [k, v] : headers)

@@ -1,3 +1,13 @@
+if(NOT TARGET gqlxy::core)
+    include(FetchContent)
+    FetchContent_Declare(
+        gqlxy-core
+        GIT_REPOSITORY https://github.com/KaSSaaaa/gqlxy-core.git
+        GIT_TAG        9eb15d7d504bed34e9551776b117e7045a0913df
+    )
+    FetchContent_MakeAvailable(gqlxy-core)
+endif()
+
 find_package(rxcpp CONFIG REQUIRED)
 get_target_property(_rxcpp_include_dir rxcpp INTERFACE_INCLUDE_DIRECTORIES)
 get_filename_component(_rxcpp_include_root "${_rxcpp_include_dir}" DIRECTORY)

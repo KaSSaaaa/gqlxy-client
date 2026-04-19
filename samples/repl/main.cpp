@@ -1,27 +1,26 @@
-#include "../../src/gqlxy/internal/url.h"
-
+#include <deque>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
-
 #include <gqlxy/client.h>
+#include <gqlxy/utils/ranges.h>
 #include <gqlxy/links/http_link.h>
 #include <gqlxy/links/split_link.h>
 #include <gqlxy/links/ws_link.h>
 #include <gqlxy/subscription.h>
-
-#include <nlohmann/json.hpp>
-
-#include <deque>
 #include <map>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <sstream>
 #include <string>
 
+//TODO simplify
+
 using namespace std;
 using namespace gqlxy;
+using namespace gqlxy::parser;
 using namespace ftxui;
 using json = nlohmann::json;
 
@@ -36,34 +35,42 @@ static GraphQLRequest ParseInput(const string& text) {
                     .query = j["query"],
                     .variables = j.value("variables", json(nullptr)),
                     .operationName = j.contains("operationName")
-                                         ? make_optional(j["operationName"].get<string>())
-                                         : nullopt,
+                        ? make_optional(j["operationName"].get<string>())
+                        : nullopt,
                 };
             }
-        } catch (...) {}
+        } catch (...) {
+        }
     }
     return {.query = text};
 }
 
 static OperationType DetectOp(const string& query) {
     const auto s = query.find_first_not_of(" \t\n\r");
-    if (s == string::npos) return OperationType::Query;
-    if (query.compare(s, 12, "subscription") == 0) return OperationType::Subscription;
-    if (query.compare(s, 8, "mutation") == 0) return OperationType::Mutation;
-    return OperationType::Query;
+    if (s == string::npos) return OperationType::QUERY;
+    if (query.compare(s, 12, "subscription") == 0) return OperationType::SUBSCRIPTION;
+    if (query.compare(s, 8, "mutation") == 0) return OperationType::MUTATION;
+    return OperationType::QUERY;
 }
 
 // ─── log ──────────────────────────────────────────────────────────────────────
 
 struct LogEntry {
-    enum class Kind { Info, Data, Error, SubStart, SubEvent, SubEnd };
+    enum class Kind {
+        Info,
+        Data,
+        Error,
+        SubStart,
+        SubEvent,
+        SubEnd
+    };
     Kind kind;
     int sub_id = -1;
     string text;
 };
 
 struct Log {
-    mutable mutex mtx;
+    mutex mtx;
     deque<LogEntry> entries;
     static constexpr size_t Max = 1000;
 
@@ -73,7 +80,7 @@ struct Log {
         if (entries.size() > Max) entries.pop_front();
     }
 
-    size_t Size() const {
+    size_t Size() {
         lock_guard lock(mtx);
         return entries.size();
     }
@@ -83,36 +90,33 @@ static Element RenderEntry(const LogEntry& e) {
     Elements lines;
     istringstream ss(e.text);
     string line;
-    while (getline(ss, line)) lines.push_back(text(line));
+    while (getline(ss, line))
+        lines.push_back(text(line));
     if (lines.empty()) lines.push_back(text(""));
 
     auto styled = [&](Color c) -> Element {
         Elements r;
-        for (auto& l : lines) r.push_back(l | color(c));
+        for (auto& l : lines)
+            r.push_back(l | color(c));
         return vbox(r);
     };
 
     switch (e.kind) {
-        case LogEntry::Kind::Info:
-            return vbox(lines) | dim;
-        case LogEntry::Kind::Data:
-            return vbox(lines);
-        case LogEntry::Kind::Error:
-            return styled(Color::Red);
+        case LogEntry::Kind::Info: return vbox(lines) | dim;
+        case LogEntry::Kind::Data: return vbox(lines);
+        case LogEntry::Kind::Error: return styled(Color::Red);
         case LogEntry::Kind::SubStart:
-            return hbox({text(" ▶ sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan) | bold,
-                         lines[0] | color(Color::Cyan)});
+            return hbox(
+                {text(" ▶ sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan) | bold,
+                 lines[0] | color(Color::Cyan)});
         case LogEntry::Kind::SubEnd:
-            return hbox({text(" ■ sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan) | dim,
-                         vbox(lines) | dim});
+            return hbox({text(" ■ sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan) | dim, vbox(lines) | dim});
         case LogEntry::Kind::SubEvent: {
             Elements r;
             for (size_t i = 0; i < lines.size(); ++i) {
                 if (i == 0)
-                    r.push_back(hbox({text("   sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan),
-                                      lines[i]}));
-                else
-                    r.push_back(hbox({text(string(10 + to_string(e.sub_id).size(), ' ')), lines[i]}));
+                    r.push_back(hbox({text("   sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan), lines[i]}));
+                else r.push_back(hbox({text(string(10 + to_string(e.sub_id).size(), ' ')), lines[i]}));
             }
             return vbox(r);
         }
@@ -123,7 +127,7 @@ static Element RenderEntry(const LogEntry& e) {
 // ─── subscriptions ────────────────────────────────────────────────────────────
 
 struct ActiveSubs {
-    mutable mutex mtx;
+    mutex mtx;
     map<int, Subscription> subs;
     int nextId = 0;
 
@@ -153,30 +157,27 @@ struct ActiveSubs {
 
     void CancelAll() {
         lock_guard lock(mtx);
-        for (auto& [_, sub] : subs) sub.Unsubscribe();
+        for (auto& [_, sub] : subs)
+            sub.Unsubscribe();
         subs.clear();
     }
 
-    vector<int> Ids() const {
+    vector<int> Ids() {
         lock_guard lock(mtx);
-        vector<int> ids;
-        for (const auto& [id, _] : subs) ids.push_back(id);
-        return ids;
+        return utils::to_vector(subs | views::keys);
     }
 };
 
-// ─── main ─────────────────────────────────────────────────────────────────────
-
-int main(int argc, char* argv[]) {
+int main() {
     string url = "http://localhost:4000/graphql";
     string wsUrl = "ws://localhost:4000/graphql";
 
     Client client({
-        .link = make_shared<SplitLink>(
-            [](const GraphQLRequest& req) { return req.type != OperationType::Subscription; },
-            make_shared<HttpLink>(HttpLinkOptions{.url = url}),
+        .link = /*make_shared<SplitLink>(
+            [](const GraphQLRequest& req) { return req.type != OperationType::Subscription; },*/
+            make_shared<HttpLink>(HttpLinkOptions{.url = url})/*,
             make_shared<WsLink>(WsLinkOptions{.url = wsUrl})
-        )
+        )*/
     });
 
     Log log;
@@ -205,16 +206,18 @@ int main(int argc, char* argv[]) {
     auto execute = [&](const GraphQLRequest& req) {
         const auto op = DetectOp(req.query);
 
-        if (op == OperationType::Subscription) {
+        if (op._value == OperationType::SUBSCRIPTION) {
             const int id = active.AllocId();
             auto obs = client.Subscribe({.query = req.query, .variables = req.variables});
             auto sub = obs.subscribe(
-                [&, id](const GraphQLResult& r) {
-                    append({LogEntry::Kind::SubEvent, id, format_result(r)});
-                },
+                [&, id](const GraphQLResponse& r) { append({LogEntry::Kind::SubEvent, id, format_result(r)}); },
                 [&, id](exception_ptr ep) {
                     string msg;
-                    try { rethrow_exception(ep); } catch (const exception& e) { msg = e.what(); }
+                    try {
+                        rethrow_exception(ep);
+                    } catch (const exception& e) {
+                        msg = e.what();
+                    }
                     append({LogEntry::Kind::SubEnd, id, "error: " + msg});
                     active.Remove(id);
                     screen.PostEvent(Event::Custom);
@@ -223,14 +226,13 @@ int main(int argc, char* argv[]) {
                     append({LogEntry::Kind::SubEnd, id, "completed"});
                     active.Remove(id);
                     screen.PostEvent(Event::Custom);
-                }
-            );
+                });
             active.Store(id, std::move(sub));
             append({LogEntry::Kind::SubStart, id, "started"});
             return;
         }
 
-        auto obs = op == OperationType::Mutation
+        auto obs = op._value == OperationType::MUTATION
             ? client.Mutation({.query = req.query, .variables = req.variables})
             : client.Query({.query = req.query, .variables = req.variables});
 
@@ -238,10 +240,13 @@ int main(int argc, char* argv[]) {
             [&](const GraphQLResponse& r) { append({LogEntry::Kind::Data, -1, format_result(r)}); },
             [&](exception_ptr ep) {
                 string msg;
-                try { rethrow_exception(ep); } catch (const exception& e) { msg = e.what(); }
+                try {
+                    rethrow_exception(ep);
+                } catch (const exception& e) {
+                    msg = e.what();
+                }
                 append({LogEntry::Kind::Error, -1, msg});
-            }
-        );
+            });
     };
 
     auto handle_command = [&](const string& cmd) -> bool {
@@ -251,7 +256,8 @@ int main(int argc, char* argv[]) {
                 append({LogEntry::Kind::Info, -1, "no active subscriptions"});
             } else {
                 string s = "active:";
-                for (int id : ids) s += " sub:" + to_string(id);
+                for (int id : ids)
+                    s += " sub:" + to_string(id);
                 append({LogEntry::Kind::Info, -1, s});
             }
             return true;
@@ -265,10 +271,8 @@ int main(int argc, char* argv[]) {
         if (cmd.starts_with(":cancel ")) {
             try {
                 const int id = stoi(cmd.substr(8));
-                if (active.Cancel(id))
-                    append({LogEntry::Kind::Info, -1, "sub:" + to_string(id) + " cancelled"});
-                else
-                    append({LogEntry::Kind::Info, -1, "no active sub with id " + to_string(id)});
+                if (active.Cancel(id)) append({LogEntry::Kind::Info, -1, "sub:" + to_string(id) + " cancelled"});
+                else append({LogEntry::Kind::Info, -1, "no active sub with id " + to_string(id)});
             } catch (...) {
                 append({LogEntry::Kind::Info, -1, "usage: :cancel [id]"});
             }
@@ -300,7 +304,7 @@ int main(int argc, char* argv[]) {
         }
         if (snapshot.empty()) return text("") | flex;
 
-        const int n = (int)snapshot.size();
+        const int n = (int) snapshot.size();
         const int target = (focus_line < 0 || focus_line >= n) ? n - 1 : focus_line;
 
         Elements elems;
@@ -355,7 +359,7 @@ int main(int argc, char* argv[]) {
             return true;
         }
         if (e.is_mouse()) {
-            const int n = (int)log.Size();
+            const int n = (int) log.Size();
             if (n == 0) return false;
             const int current = (focus_line < 0 || focus_line >= n) ? n - 1 : focus_line;
             if (e.mouse().button == Mouse::WheelUp) {

@@ -1,16 +1,17 @@
-#include "internal/query_parser.h"
+#include <gqlxy/parser/peg/parser/query/parse_document.h>
 #include <gqlxy/client.h>
 
 using namespace std;
 using namespace gqlxy;
-using namespace gqlxy::internal;
+using namespace gqlxy::parser;
 using namespace nlohmann;
 
 GraphQLRequest BuildRequest(const string& query, const json& variables, OperationType type, FetchPolicy policy) {
+    auto doc = ParseDocument(query);
     return {
         .query = query,
         .variables = variables,
-        .operationName = ParseQuery(query).name,
+        .operationName = doc.operations.empty() ? nullopt : doc.operations[0].name,
         .type = type,
         .policy = policy};
 }
@@ -19,20 +20,20 @@ Client::Client(const ClientOptions& options) : _options(options) {}
 
 Observable<GraphQLResponse> Client::Query(const QueryOptions& opts) {
     return Execute(BuildRequest(
-        opts.query, opts.variables, OperationType::Query, opts.fetchPolicy.value_or(_options.defaultFetchPolicy)));
+        opts.query, opts.variables, OperationType::QUERY, opts.fetchPolicy.value_or(_options.defaultFetchPolicy)));
 }
 
 Observable<GraphQLResponse> Client::Mutation(const MutationOptions& opts) {
-    return Execute(BuildRequest(opts.query, opts.variables, OperationType::Mutation, FetchPolicy::NetworkOnly));
+    return Execute(BuildRequest(opts.query, opts.variables, OperationType::MUTATION, FetchPolicy::NetworkOnly));
 }
 
 Observable<GraphQLResponse> Client::Subscribe(const SubscribeOptions& opts) {
     return _options.link->Execute(
-        BuildRequest(opts.query, opts.variables, OperationType::Subscription, FetchPolicy::NetworkOnly));
+        BuildRequest(opts.query, opts.variables, OperationType::SUBSCRIPTION, FetchPolicy::NetworkOnly));
 }
 
 Observable<GraphQLResponse> Client::Refetch(const QueryOptions& opts) {
-    return Execute(BuildRequest(opts.query, opts.variables, OperationType::Query, FetchPolicy::NetworkOnly));
+    return Execute(BuildRequest(opts.query, opts.variables, OperationType::QUERY, FetchPolicy::NetworkOnly));
 }
 
 Observable<GraphQLResponse> Client::FetchFromNetwork(const GraphQLRequest& request) {

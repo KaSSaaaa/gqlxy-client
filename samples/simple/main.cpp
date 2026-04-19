@@ -8,12 +8,13 @@
 
 using namespace std;
 using namespace gqlxy;
+using namespace gqlxy::parser;
 
 int main() {
     // clang-format off
     Client client({
         .link = make_shared<SplitLink>(
-            [](const auto& req) { return req.type != OperationType::Subscription; },
+            [](const auto& req) { return req.type._value != OperationType::SUBSCRIPTION; },
             make_shared<HttpLink>(HttpLinkOptions{.url = "http://localhost:4000/graphql"}),
             make_shared<WsLink>(WsLinkOptions{.url = "ws://localhost:4000/graphql"})
         ),
