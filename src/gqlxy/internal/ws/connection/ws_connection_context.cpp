@@ -18,8 +18,6 @@ using namespace boost::asio;
 using namespace rxcpp;
 using nlohmann::json;
 
-//TODO simplify
-
 WsConnectionContext::WsConnectionContext(const WsLinkOptions& opts) : _reconnectTimer(AsioContext::Get()), _opts(opts) {
     try {
         _url = ParseWsUrl(_opts.url);
@@ -52,9 +50,7 @@ void WsConnectionContext::Stop() {
     promise<void> done;
     post(AsioContext::Get(), [this, &done]() {
         StopOnContext();
-        post(AsioContext::Get(), [&done]() {
-            done.set_value();
-        });
+        post(AsioContext::Get(), [&done]() { done.set_value(); });
     });
     done.get_future().get();
 }
@@ -170,18 +166,11 @@ void WsConnectionContext::ConnectTransport() {
     _transport = make_shared<WsTransport>(
         _url, _opts.headers,
         WsTransportCallbacks {
-            .onConnected =
-                [weak = weak_from_this()]() {
-                    if (auto ctx = weak.lock()) ctx->OnTransportConnected();
-                },
-            .onMessage =
-                [weak = weak_from_this()](const string& msg) {
-                    if (auto ctx = weak.lock()) ctx->OnTransportMessage(msg);
-                },
-            .onDisconnected =
-                [weak = weak_from_this()]() {
-                    if (auto ctx = weak.lock(); ctx && !ctx->_stopping) ctx->OnTransportDisconnected();
-                },
+            .onConnected = WeakCallback([](auto& ctx) { ctx.OnTransportConnected(); }),
+            .onMessage = WeakCallback([](auto& ctx, const string& msg) { ctx.OnTransportMessage(msg); }),
+            .onDisconnected = WeakCallback([](auto& ctx) {
+                if (!ctx._stopping) ctx.OnTransportDisconnected();
+            }),
         },
         _opts.caCert);
     _transport->Connect();
@@ -226,9 +215,9 @@ void WsConnectionContext::ScheduleReconnect() {
     const int delay_s = min(1 << min(_reconnectAttempt, 5), 30);
     ++_reconnectAttempt;
     _reconnectTimer.expires_after(seconds(delay_s));
-    _reconnectTimer.async_wait([weak = weak_from_this()](const auto& ec) {
-        if (auto ctx = weak.lock(); ctx && !ec && !ctx->_stopping) ctx->TransitionTo(ConnectionState::Connecting);
-    });
+    _reconnectTimer.async_wait(WeakCallback([](auto& ctx, const auto& ec) {
+        if (!ec && !ctx._stopping) ctx.TransitionTo(ConnectionState::Connecting);
+    }));
 }
 
 void WsConnectionContext::CancelReconnect() {

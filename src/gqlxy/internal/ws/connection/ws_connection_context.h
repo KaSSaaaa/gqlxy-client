@@ -62,6 +62,13 @@ private:
 
     void StopOnContext();
 
+    template <typename F>
+    auto WeakCallback(F&& fn) {
+        return [weak = weak_from_this(), fn = std::forward<F>(fn)]<typename... TArgs>(TArgs&&... args) {
+            if (auto ctx = weak.lock()) fn(*ctx, std::forward<TArgs>(args)...);
+        };
+    }
+
     ConnectionState _state = ConnectionState::Idle;
     std::map<std::string, WsSubscription> _subs;
     std::shared_ptr<WsTransport> _transport;
