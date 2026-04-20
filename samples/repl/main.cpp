@@ -60,6 +60,8 @@ struct LogEntry {
         Info,
         Data,
         Error,
+        Stdout,
+        Stderr,
         SubStart,
         SubEvent,
         SubEnd
@@ -105,6 +107,8 @@ static Element RenderEntry(const LogEntry& e) {
         case LogEntry::Kind::Info: return vbox(lines) | dim;
         case LogEntry::Kind::Data: return vbox(lines);
         case LogEntry::Kind::Error: return styled(Color::Red);
+        case LogEntry::Kind::Stdout: return styled(Color::White);
+        case LogEntry::Kind::Stderr: return styled(Color::Yellow);
         case LogEntry::Kind::SubStart:
             return hbox(
                 {text(" ▶ sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan) | bold,
@@ -168,6 +172,41 @@ struct ActiveSubs {
     }
 };
 
+// ─── stream capture ───────────────────────────────────────────────────────────
+
+class StreamCaptureBuf : public streambuf {
+public:
+    using Callback = function<void(const string&)>;
+
+    StreamCaptureBuf(streambuf* original, Callback cb)
+        : original_(original), cb_(std::move(cb)) {}
+
+protected:
+    int overflow(int c) override {
+        if (c == EOF) return EOF;
+        if (c == '\n') flush_line();
+        else buf_ += static_cast<char>(c);
+        return c;
+    }
+
+    streamsize xsputn(const char* s, streamsize n) override {
+        for (streamsize i = 0; i < n; ++i) overflow(s[i]);
+        return n;
+    }
+
+private:
+    void flush_line() {
+        if (!buf_.empty()) {
+            cb_(buf_);
+            buf_.clear();
+        }
+    }
+
+    streambuf* original_;
+    Callback cb_;
+    string buf_;
+};
+
 int main() {
     string url = "http://localhost:4000/graphql";
     string wsUrl = "ws://localhost:4000/graphql";
@@ -191,6 +230,12 @@ int main() {
         log.Append(std::move(e));
         screen.PostEvent(Event::Custom);
     };
+
+    // Capture stderr into the log (stdout is left alone — FTXUI uses it for rendering)
+    StreamCaptureBuf cerr_buf(cerr.rdbuf(), [&](const string& line) {
+        append({LogEntry::Kind::Stderr, -1, line});
+    });
+    auto* prev_cerr = cerr.rdbuf(&cerr_buf);
 
     auto format_result = [](const GraphQLResponse& r) -> string {
         string out;
@@ -305,7 +350,7 @@ int main() {
         if (snapshot.empty()) return text("") | flex;
 
         const int n = (int) snapshot.size();
-        const int target = (focus_line < 0 || focus_line >= n) ? n - 1 : focus_line;
+        const int target = focus_line < 0 || focus_line >= n ? n - 1 : focus_line;
 
         Elements elems;
         for (int i = 0; i < n; ++i) {
@@ -337,7 +382,7 @@ int main() {
                 text(" gqlxy ") | bold | color(Color::Blue),
                 text("· ") | dim,
                 text(url) | dim,
-                wsUrl.empty() ? text("") : (text("  ws: " + wsUrl) | dim),
+                wsUrl.empty() ? text("") : text("  ws: " + wsUrl) | dim,
             }),
             separator(),
             log_renderer->Render() | flex,
@@ -361,14 +406,14 @@ int main() {
         if (e.is_mouse()) {
             const int n = (int) log.Size();
             if (n == 0) return false;
-            const int current = (focus_line < 0 || focus_line >= n) ? n - 1 : focus_line;
+            const int current = focus_line < 0 || focus_line >= n ? n - 1 : focus_line;
             if (e.mouse().button == Mouse::WheelUp) {
                 focus_line = max(0, current - 3);
                 return true;
             }
             if (e.mouse().button == Mouse::WheelDown) {
                 const int next = min(n - 1, current + 3);
-                focus_line = (next >= n - 1) ? -1 : next;
+                focus_line = next >= n - 1 ? -1 : next;
                 return true;
             }
         }
@@ -378,5 +423,6 @@ int main() {
     append({LogEntry::Kind::Info, -1, "Connected to " + url});
     screen.Loop(root);
     active.CancelAll();
+    cerr.rdbuf(prev_cerr);
     return 0;
 }

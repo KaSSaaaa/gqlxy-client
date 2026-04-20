@@ -1,19 +1,26 @@
 #pragma once
 
+#include <functional>
 #include <gqlxy/cache.h>
 #include <gqlxy/client/fetch_policy.h>
+#include <gqlxy/client/results.h>
 #include <gqlxy/link.h>
 #include <gqlxy/observable.h>
-#include <gqlxy/client/results.h>
+#include <gqlxy/parser/ast/document.h>
+#include <gqlxy/transforms/add_typename.h>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace gqlxy {
+
+using DocumentTransform = std::function<parser::Document(const parser::Document&)>;
 
 struct ClientOptions {
     std::shared_ptr<Link> link;
     std::shared_ptr<Cache> cache;
     FetchPolicy defaultFetchPolicy = FetchPolicy::CacheFirst;
+    std::vector<DocumentTransform> documentTransforms = { AddTypename };
 };
 
 struct QueryOptions {
@@ -44,6 +51,8 @@ public:
 private:
     Observable<GraphQLResponse> Execute(const GraphQLRequest& request);
     Observable<GraphQLResponse> FetchFromNetwork(const GraphQLRequest& request);
+    GraphQLRequest BuildRequest(
+        const std::string& query, const nlohmann::json& variables, parser::OperationType type, FetchPolicy policy);
 
     ClientOptions _options;
 };

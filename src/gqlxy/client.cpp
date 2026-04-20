@@ -1,22 +1,34 @@
-#include <gqlxy/parser/peg/parser/query/parse_document.h>
 #include <gqlxy/client.h>
+#include <gqlxy/parser/peg/parser/query/parse_document.h>
+#include <gqlxy/print.h>
+#include <gqlxy/utils/ranges.h>
 
 using namespace std;
 using namespace gqlxy;
 using namespace gqlxy::parser;
+using namespace gqlxy::utils;
 using namespace nlohmann;
 
-GraphQLRequest BuildRequest(const string& query, const json& variables, OperationType type, FetchPolicy policy) {
+Client::Client(const ClientOptions& options) : _options(options) {}
+
+GraphQLRequest Client::BuildRequest(
+    const string& query,
+    const json& variables,
+    OperationType type,
+    FetchPolicy policy) {
     auto doc = ParseDocument(query);
+
+    for (const auto& transform : _options.documentTransforms)
+        doc = transform(doc);
+
     return {
-        .query = query,
+        .query = Print(doc),
         .variables = variables,
         .operationName = doc.operations.empty() ? nullopt : doc.operations[0].name,
         .type = type,
-        .policy = policy};
+        .policy = policy
+    };
 }
-
-Client::Client(const ClientOptions& options) : _options(options) {}
 
 Observable<GraphQLResponse> Client::Query(const QueryOptions& opts) {
     return Execute(BuildRequest(
