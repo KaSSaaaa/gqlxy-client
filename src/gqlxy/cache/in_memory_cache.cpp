@@ -180,8 +180,7 @@ optional<GraphQLResponse> InMemoryCache::Read(const GraphQLRequest& request) {
     if (doc.operations.empty()) return nullopt;
     auto& selections = doc.operations[0].selectionSet.selections;
 
-    unique_lock lock(_mutex);
-
+    shared_lock lock(_mutex);
     auto rootKey = RootKey(request);
     return and_then(to_optional(_entityStore, _entityStore.find(rootKey)), [&, this](const auto& it) {
         auto data = DenormalizeObject(it.second, selections, doc.fragments, request.variables);
@@ -202,6 +201,6 @@ void InMemoryCache::EvictEntity(const string& entityId) {
 }
 
 json InMemoryCache::Extract() {
-    unique_lock lock(_mutex);
+    shared_lock lock(_mutex);
     return json(_entityStore);
 }

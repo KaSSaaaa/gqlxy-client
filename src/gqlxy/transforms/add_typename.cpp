@@ -74,20 +74,6 @@ SelectionSet TransformSelectionSet(const SelectionSet& selectionSet) {
 }
 
 Document AddTypename(const Document& document) {
-    Document result;
-
-    for (const auto& op : document.operations) {
-        OperationDefinition transformed = op;
-        transformed.selectionSet = TransformSelectionSet(op.selectionSet);
-        result.operations.push_back(std::move(transformed));
-    }
-
-    for (const auto& [name, frag] : document.fragments) {
-        FragmentDefinition transformed = frag;
-        transformed.selectionSet = TransformSelectionSet(frag.selectionSet);
-        result.fragments.emplace(name, std::move(transformed));
-    }
-
     return Document {
         .operations = to_vector(document.operations | views::transform([](const auto& op) {
             return OperationDefinition {

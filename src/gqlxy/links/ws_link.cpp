@@ -18,8 +18,13 @@ WsLink::~WsLink() {
 
 Observable<GraphQLResponse> WsLink::Execute(const GraphQLRequest& request) {
     return observable<>::create<GraphQLResponse>([conn = _connection, req = request, this](const auto& s) {
-        const auto id = uuids::to_string(_uuidGenerator());
+        const auto id = GenerateId();
         s.add([conn, id]() { conn->Unsubscribe(id); });
         conn->Subscribe(id, req, s);
     });
+}
+
+string WsLink::GenerateId() {
+    lock_guard lock(_uuidMutex);
+    return uuids::to_string(_uuidGenerator());
 }

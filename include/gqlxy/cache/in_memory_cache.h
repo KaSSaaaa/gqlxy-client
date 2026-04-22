@@ -24,7 +24,7 @@ public:
     nlohmann::json Extract();
 
 private:
-    std::mutex _mutex;
+    std::shared_mutex _mutex;
     std::unordered_map<std::string, nlohmann::json> _entityStore;
     InMemoryCacheOptions _options;
 
