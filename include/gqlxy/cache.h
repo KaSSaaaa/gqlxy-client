@@ -4,6 +4,7 @@
 #include <optional>
 
 namespace gqlxy {
+struct GraphQLResponse;
 
 class Cache {
 public:

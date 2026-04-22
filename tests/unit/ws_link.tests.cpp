@@ -1,5 +1,6 @@
 #include "to_result.h"
 #include <gqlxy/links/ws_link.h>
+#include <gqlxy/results.h>
 #include <gtest/gtest.h>
 
 using namespace std;

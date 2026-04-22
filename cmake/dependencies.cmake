@@ -3,7 +3,7 @@ if(NOT TARGET gqlxy::core)
     FetchContent_Declare(
         gqlxy-core
         GIT_REPOSITORY https://github.com/KaSSaaaa/gqlxy-core.git
-        GIT_TAG        9eb15d7d504bed34e9551776b117e7045a0913df
+        GIT_TAG        main
     )
     FetchContent_MakeAvailable(gqlxy-core)
 endif()

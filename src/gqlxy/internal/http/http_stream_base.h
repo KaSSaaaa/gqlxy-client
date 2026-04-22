@@ -12,6 +12,7 @@
 #include <gqlxy/internal/http/response.h>
 #include <gqlxy/internal/http/serialization.h>
 #include <gqlxy/internal/url.h>
+#include <gqlxy/results.h>
 
 namespace gqlxy::internal {
 

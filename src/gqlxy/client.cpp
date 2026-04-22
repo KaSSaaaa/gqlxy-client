@@ -1,6 +1,7 @@
 #include <gqlxy/client.h>
 #include <gqlxy/parser/peg/parser/query/parse_document.h>
 #include <gqlxy/print.h>
+#include <gqlxy/results.h>
 #include <gqlxy/utils/ranges.h>
 
 using namespace std;

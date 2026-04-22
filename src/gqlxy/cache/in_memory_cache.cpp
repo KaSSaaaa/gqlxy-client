@@ -3,6 +3,7 @@
 #include <gqlxy/parser/ast/document.h>
 #include <gqlxy/parser/ast/selection.h>
 #include <gqlxy/parser/peg/parser/query/parse_document.h>
+#include <gqlxy/results.h>
 #include <gqlxy/utils/optional.h>
 #include <gqlxy/utils/ranges.h>
 #include <gqlxy/utils/visit.h>

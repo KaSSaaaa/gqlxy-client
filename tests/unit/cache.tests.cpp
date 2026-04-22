@@ -1,4 +1,5 @@
 #include <gqlxy/cache/in_memory_cache.h>
+#include <gqlxy/results.h>
 #include <gtest/gtest.h>
 
 using namespace gqlxy;

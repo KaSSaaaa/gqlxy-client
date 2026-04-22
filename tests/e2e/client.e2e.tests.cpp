@@ -1,17 +1,16 @@
 #include "server_fixture.h"
 #include "to_result.h"
-
+#include <chrono>
+#include <functional>
+#include <future>
 #include <gqlxy/cache/in_memory_cache.h>
 #include <gqlxy/client.h>
 #include <gqlxy/client/fetch_policy.h>
 #include <gqlxy/links/http_link.h>
 #include <gqlxy/links/split_link.h>
 #include <gqlxy/links/ws_link.h>
+#include <gqlxy/results.h>
 #include <gtest/gtest.h>
-
-#include <chrono>
-#include <functional>
-#include <future>
 #include <string>
 #include <tuple>
 

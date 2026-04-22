@@ -1,11 +1,14 @@
 #pragma once
 
 #include <boost/beast/http/status.hpp>
-#include <gqlxy/client/results.h>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
+
+namespace gqlxy {
+struct GraphQLResponse;
+}
 
 namespace gqlxy::internal {
 

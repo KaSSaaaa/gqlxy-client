@@ -1,8 +1,8 @@
-#include <gqlxy/internal/http/response.h>
-#include <boost/beast/http/field.hpp>
 #include <boost/beast/http/status.hpp>
-#include <gqlxy/utils/ranges.h>
+#include <gqlxy/internal/http/response.h>
+#include <gqlxy/results.h>
 #include <gqlxy/utils/optional.h>
+#include <gqlxy/utils/ranges.h>
 #include <nlohmann/json.hpp>
 
 using namespace std;

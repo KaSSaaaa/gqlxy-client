@@ -3,7 +3,7 @@
 #include <gqlxy/links/http_link.h>
 #include <gqlxy/links/split_link.h>
 #include <gqlxy/links/ws_link.h>
-
+#include <gqlxy/results.h>
 #include <iostream>
 
 using namespace std;
@@ -28,18 +28,17 @@ int main() {
                 __typename
             }
         )"
-    })
-        .subscribe(
-            [](const auto& r) {
-                auto [data, errors] = r;
+    }).subscribe(
+        [](const GraphQLResponse& r) {
+            auto [data, errors] = r;
 
-                if (data) cout << r.data->dump(2) << endl;
-                if (errors)
-                    for (const auto& [message, _] : *r.errors)
-                        cerr << "Error: " << message << endl;
-            },
-            [](auto) { cerr << "Query error" << endl; }
-        );
+            if (data) cout << r.data->dump(2) << endl;
+            if (errors)
+                for (const auto& [message, path, locations] : *r.errors)
+                    cerr << "Error: " << message << endl;
+        },
+        [](auto) { cerr << "Query error" << endl; }
+    );
 
     auto sub = client.Subscribe({
         .query = R"(

@@ -4,6 +4,7 @@
 #include <gqlxy/client/results.h>
 
 namespace gqlxy {
+struct GraphQLResponse;
 
 using Headers = std::map<std::string, std::string>;
 

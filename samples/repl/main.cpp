@@ -4,56 +4,47 @@
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <gqlxy/client.h>
-#include <gqlxy/utils/ranges.h>
 #include <gqlxy/links/http_link.h>
 #include <gqlxy/links/split_link.h>
 #include <gqlxy/links/ws_link.h>
+#include <gqlxy/parser/peg/parser/query/parse_document.h>
+#include <gqlxy/results.h>
 #include <gqlxy/subscription.h>
+#include <gqlxy/utils/optional.h>
+#include <gqlxy/utils/ranges.h>
 #include <map>
 #include <mutex>
 #include <nlohmann/json.hpp>
-#include <optional>
-#include <sstream>
+#include <ranges>
 #include <string>
-
-//TODO simplify
 
 using namespace std;
 using namespace gqlxy;
 using namespace gqlxy::parser;
+using namespace gqlxy::utils;
 using namespace ftxui;
 using json = nlohmann::json;
 
-// ─── input parsing ────────────────────────────────────────────────────────────
-
 static GraphQLRequest ParseInput(const string& text) {
-    if (!text.empty() && text.front() == '{') {
-        try {
-            const auto j = json::parse(text);
-            if (j.contains("query")) {
-                return {
-                    .query = j["query"],
-                    .variables = j.value("variables", json(nullptr)),
-                    .operationName = j.contains("operationName")
-                        ? make_optional(j["operationName"].get<string>())
-                        : nullopt,
-                };
-            }
-        } catch (...) {
+    if (text.empty()) return {.query = text};
+    try {
+        const auto j = json::parse(text);
+        if (j.contains("query")) {
+            return {
+                .query = j["query"],
+                .variables = j.value("variables", nullptr),
+                .operationName = make_optional_if(
+                    j.contains("operationName"), [&] { return j["operationName"].get<string>(); }),
+            };
         }
+    } catch (...) {
     }
     return {.query = text};
 }
 
 static OperationType DetectOp(const string& query) {
-    const auto s = query.find_first_not_of(" \t\n\r");
-    if (s == string::npos) return OperationType::QUERY;
-    if (query.compare(s, 12, "subscription") == 0) return OperationType::SUBSCRIPTION;
-    if (query.compare(s, 8, "mutation") == 0) return OperationType::MUTATION;
-    return OperationType::QUERY;
+    return ParseDocument(query).operations[0].type;
 }
-
-// ─── log ──────────────────────────────────────────────────────────────────────
 
 struct LogEntry {
     enum class Kind {
@@ -71,146 +62,208 @@ struct LogEntry {
     string text;
 };
 
-struct Log {
-    mutex mtx;
-    deque<LogEntry> entries;
-    static constexpr size_t Max = 1000;
-
+class Log {
+public:
+    Log(ScreenInteractive& screen) : _screen(screen) {}
     void Append(LogEntry e) {
-        lock_guard lock(mtx);
-        entries.push_back(std::move(e));
-        if (entries.size() > Max) entries.pop_front();
+        lock_guard lock(_mtx);
+        _entries.push_back(std::move(e));
+        if (_entries.size() > Max) _entries.pop_front();
+        _screen.PostEvent(Event::Custom);
     }
 
     size_t Size() {
-        lock_guard lock(mtx);
-        return entries.size();
+        lock_guard lock(_mtx);
+        return _entries.size();
     }
+
+    vector<LogEntry> Entries() {
+        lock_guard lock(_mtx);
+        return std::vector<LogEntry> { _entries.begin(), _entries.end() };
+    }
+
+private:
+    ScreenInteractive& _screen;
+    mutex _mtx;
+    deque<LogEntry> _entries;
+    static constexpr size_t Max = 1000;
 };
 
-static Element RenderEntry(const LogEntry& e) {
-    Elements lines;
-    istringstream ss(e.text);
-    string line;
-    while (getline(ss, line))
-        lines.push_back(text(line));
-    if (lines.empty()) lines.push_back(text(""));
+static Elements SplitLines(const string& s) {
+    auto result = to_vector(split(s, '\n') | views::transform([](const string& l) { return text(l); }));
+    if (result.empty()) return {text("")};
+    return result;
+}
 
-    auto styled = [&](Color c) -> Element {
-        Elements r;
-        for (auto& l : lines)
-            r.push_back(l | color(c));
-        return vbox(r);
-    };
+static Element ColoredLines(const Elements& lines, Color c) {
+    return vbox(to_vector(lines | views::transform([&](const Element& l) { return l | color(c); })));
+}
+
+static Element SubPrefix(int id, const string& icon) {
+    return text(format(" {} sub:{} ", icon, id)) | color(Color::Cyan);
+}
+
+static Element RenderEntry(const LogEntry& e) {
+    auto lines = SplitLines(e.text);
 
     switch (e.kind) {
         case LogEntry::Kind::Info: return vbox(lines) | dim;
         case LogEntry::Kind::Data: return vbox(lines);
-        case LogEntry::Kind::Error: return styled(Color::Red);
-        case LogEntry::Kind::Stdout: return styled(Color::White);
-        case LogEntry::Kind::Stderr: return styled(Color::Yellow);
+        case LogEntry::Kind::Error: return ColoredLines(lines, Color::Red);
+        case LogEntry::Kind::Stdout: return ColoredLines(lines, Color::White);
+        case LogEntry::Kind::Stderr: return ColoredLines(lines, Color::Yellow);
         case LogEntry::Kind::SubStart:
-            return hbox(
-                {text(" ▶ sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan) | bold,
-                 lines[0] | color(Color::Cyan)});
-        case LogEntry::Kind::SubEnd:
-            return hbox({text(" ■ sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan) | dim, vbox(lines) | dim});
-        case LogEntry::Kind::SubEvent: {
-            Elements r;
-            for (size_t i = 0; i < lines.size(); ++i) {
-                if (i == 0)
-                    r.push_back(hbox({text("   sub:" + to_string(e.sub_id) + " ") | color(Color::Cyan), lines[i]}));
-                else r.push_back(hbox({text(string(10 + to_string(e.sub_id).size(), ' ')), lines[i]}));
-            }
-            return vbox(r);
-        }
+            return hbox({SubPrefix(e.sub_id, "\u25B6") | bold, lines[0] | color(Color::Cyan)});
+        case LogEntry::Kind::SubEnd: return hbox({SubPrefix(e.sub_id, "\u25A0") | dim, vbox(lines) | dim});
+        case LogEntry::Kind::SubEvent:
+            return vbox(to_vector(lines | views::transform([&](const auto& line) {
+                return hbox({text(format("   sub:{} ", e.sub_id)) | color(Color::Cyan), line});
+            })));
     }
     return vbox(lines);
 }
 
-// ─── subscriptions ────────────────────────────────────────────────────────────
-
-struct ActiveSubs {
-    mutex mtx;
-    map<int, Subscription> subs;
-    int nextId = 0;
-
+class ActiveSubs {
+public:
     int AllocId() {
-        lock_guard lock(mtx);
-        return nextId++;
+        lock_guard lock(_mutex);
+        return _nextId++;
     }
 
-    void Store(int id, Subscription sub) {
-        lock_guard lock(mtx);
-        subs.emplace(id, std::move(sub));
+    void Store(int id, const Subscription& sub) {
+        lock_guard lock(_mutex);
+        _subs[id] = sub;
     }
 
     void Remove(int id) {
-        lock_guard lock(mtx);
-        subs.erase(id);
+        lock_guard lock(_mutex);
+        _subs.erase(id);
     }
 
     bool Cancel(int id) {
-        lock_guard lock(mtx);
-        auto it = subs.find(id);
-        if (it == subs.end()) return false;
-        it->second.Unsubscribe();
-        subs.erase(it);
-        return true;
+        lock_guard lock(_mutex);
+        return and_then(to_optional(_subs, _subs.find(id)), [this](auto it) {
+            it.second.Unsubscribe();
+            _subs.erase(it.first);
+            return true;
+        });
     }
 
     void CancelAll() {
-        lock_guard lock(mtx);
-        for (auto& [_, sub] : subs)
+        lock_guard lock(_mutex);
+        for (auto& sub : _subs | views::values)
             sub.Unsubscribe();
-        subs.clear();
+        _subs.clear();
     }
 
     vector<int> Ids() {
-        lock_guard lock(mtx);
-        return utils::to_vector(subs | views::keys);
+        lock_guard lock(_mutex);
+        return to_vector(_subs | views::keys);
     }
-};
 
-// ─── stream capture ───────────────────────────────────────────────────────────
+private:
+    mutex _mutex;
+    map<int, Subscription> _subs;
+    int _nextId = 0;
+};
 
 class StreamCaptureBuf : public streambuf {
 public:
     using Callback = function<void(const string&)>;
 
-    StreamCaptureBuf(streambuf* original, Callback cb)
-        : original_(original), cb_(std::move(cb)) {}
+    StreamCaptureBuf(streambuf* original, Callback cb) : _original(original), _cb(std::move(cb)) {}
 
 protected:
     int overflow(int c) override {
         if (c == EOF) return EOF;
-        if (c == '\n') flush_line();
-        else buf_ += static_cast<char>(c);
+        if (c == '\n') FlushLine();
+        else _buf += static_cast<char>(c);
         return c;
     }
 
     streamsize xsputn(const char* s, streamsize n) override {
-        for (streamsize i = 0; i < n; ++i) overflow(s[i]);
+        for (auto i = 0; i < n; ++i)
+            overflow(s[i]);
         return n;
     }
 
 private:
-    void flush_line() {
-        if (!buf_.empty()) {
-            cb_(buf_);
-            buf_.clear();
+    void FlushLine() {
+        if (!_buf.empty()) {
+            _cb(_buf);
+            _buf.clear();
         }
     }
 
-    streambuf* original_;
-    Callback cb_;
-    string buf_;
+    streambuf* _original;
+    Callback _cb;
+    string _buf;
 };
 
-int main() {
-    string url = "http://localhost:4000/graphql";
-    string wsUrl = "ws://localhost:4000/graphql";
+static string FormatResult(const GraphQLResponse& r) {
+    return Serialize(r).dump(2);
+}
 
+static string ExceptionMessage(exception_ptr ep) {
+    try {
+        rethrow_exception(ep);
+    } catch (const exception& e) {
+        return e.what();
+    }
+    return "unknown error";
+}
+
+class Request {
+public:
+    Request(Client& client, Log& log, ActiveSubs& activeSubs) : _client(client), _log(log), _activeSubs(activeSubs) {}
+
+    void Execute(const GraphQLRequest& req) {
+        const auto op = DetectOp(req.query);
+
+        if (op._value == OperationType::SUBSCRIPTION) {
+            const int id = _activeSubs.AllocId();
+            auto sub =
+                _client.Subscribe({.query = req.query, .variables = req.variables})
+                    .subscribe(
+                        [&, id](const GraphQLResponse& r) {
+                            _log.Append({LogEntry::Kind::SubEvent, id, FormatResult(r)});
+                        },
+                        [&, id](exception_ptr ep) {
+                            _log.Append({LogEntry::Kind::SubEnd, id, "error: " + ExceptionMessage(ep)});
+                            _activeSubs.Remove(id);
+                        },
+                        [&, id]() {
+                            _log.Append({LogEntry::Kind::SubEnd, id, "completed"});
+                            _activeSubs.Remove(id);
+                        });
+            _activeSubs.Store(id, std::move(sub));
+            _log.Append({LogEntry::Kind::SubStart, id, "started"});
+            return;
+        }
+
+        auto obs = op._value == OperationType::MUTATION
+                       ? _client.Mutation({.query = req.query, .variables = req.variables})
+                       : _client.Query({.query = req.query, .variables = req.variables});
+
+        obs.subscribe(
+            [&](const GraphQLResponse& r) { _log.Append({LogEntry::Kind::Data, -1, FormatResult(r)}); },
+            [&](exception_ptr ep) { _log.Append({LogEntry::Kind::Error, -1, ExceptionMessage(ep)}); });
+
+    }
+
+private:
+    Client& _client;
+    Log& _log;
+    ActiveSubs& _activeSubs;
+};
+
+// ─── main ─────────────────────────────────────────────────────────────────────
+
+int main() {
+    const string url = "http://localhost:4000/graphql";
+    const string wsUrl = "ws://localhost:4000/graphql";
+
+    // clang-format off
     Client client({
         .link = /*make_shared<SplitLink>(
             [](const GraphQLRequest& req) { return req.type != OperationType::Subscription; },*/
@@ -218,211 +271,131 @@ int main() {
             make_shared<WsLink>(WsLinkOptions{.url = wsUrl})
         )*/
     });
+    // clang-format on
 
-    Log log;
-    ActiveSubs active;
     auto screen = ScreenInteractive::Fullscreen();
+    Log log(screen);
+    ActiveSubs active;
+    Request request(client, log, active);
+    int focusLine = -1;
 
-    // focus_line: -1 = auto-scroll to bottom, >= 0 = pinned entry index
-    int focus_line = -1;
-
-    auto append = [&](LogEntry e) {
-        log.Append(std::move(e));
-        screen.PostEvent(Event::Custom);
-    };
-
-    // Capture stderr into the log (stdout is left alone — FTXUI uses it for rendering)
-    StreamCaptureBuf cerr_buf(cerr.rdbuf(), [&](const string& line) {
-        append({LogEntry::Kind::Stderr, -1, line});
+    StreamCaptureBuf cerrBuffer(cerr.rdbuf(), [&](const string& line) {
+        log.Append({LogEntry::Kind::Stderr, -1, line});
     });
-    auto* prev_cerr = cerr.rdbuf(&cerr_buf);
+    auto* previousCerr = cerr.rdbuf(&cerrBuffer);
 
-    auto format_result = [](const GraphQLResponse& r) -> string {
-        string out;
-        if (r.data) out += r.data->dump(2);
-        if (r.errors)
-            for (const auto& e : *r.errors) {
-                if (!out.empty()) out += "\n";
-                out += "error: " + e.message;
+    string input;
+    auto inputComponent = Input(&input, "GraphQL query/mutation/subscription  :subs  :cancel [id]", {
+        .multiline = false,
+        .on_enter = [&] {
+            if (input.empty()) return;
+            log.Append({LogEntry::Kind::Info, -1, format("> {}", input)});
+
+            if (input == ":subs") {
+                log.Append({LogEntry::Kind::Info, -1, format("active: {}", active.Ids()
+                    | views::transform([](int id) { return format("sub:{}", id); })
+                    | join_with(" "))});
             }
-        return out.empty() ? "(empty)" : out;
-    };
-
-    auto execute = [&](const GraphQLRequest& req) {
-        const auto op = DetectOp(req.query);
-
-        if (op._value == OperationType::SUBSCRIPTION) {
-            const int id = active.AllocId();
-            auto obs = client.Subscribe({.query = req.query, .variables = req.variables});
-            auto sub = obs.subscribe(
-                [&, id](const GraphQLResponse& r) { append({LogEntry::Kind::SubEvent, id, format_result(r)}); },
-                [&, id](exception_ptr ep) {
-                    string msg;
-                    try {
-                        rethrow_exception(ep);
-                    } catch (const exception& e) {
-                        msg = e.what();
-                    }
-                    append({LogEntry::Kind::SubEnd, id, "error: " + msg});
-                    active.Remove(id);
-                    screen.PostEvent(Event::Custom);
-                },
-                [&, id]() {
-                    append({LogEntry::Kind::SubEnd, id, "completed"});
-                    active.Remove(id);
-                    screen.PostEvent(Event::Custom);
-                });
-            active.Store(id, std::move(sub));
-            append({LogEntry::Kind::SubStart, id, "started"});
-            return;
-        }
-
-        auto obs = op._value == OperationType::MUTATION
-            ? client.Mutation({.query = req.query, .variables = req.variables})
-            : client.Query({.query = req.query, .variables = req.variables});
-
-        obs.subscribe(
-            [&](const GraphQLResponse& r) { append({LogEntry::Kind::Data, -1, format_result(r)}); },
-            [&](exception_ptr ep) {
-                string msg;
+            else if (input == ":cancel") {
+                active.CancelAll();
+                log.Append({LogEntry::Kind::Info, -1, "all subscriptions cancelled"});
+                screen.PostEvent(Event::Custom);
+            }
+            else if (input.starts_with(":cancel ")) {
                 try {
-                    rethrow_exception(ep);
-                } catch (const exception& e) {
-                    msg = e.what();
+                    const int id = stoi(input.substr(8));
+                    if (active.Cancel(id)) log.Append({LogEntry::Kind::Info, -1, format("sub:{} cancelled", id)});
+                    else log.Append({LogEntry::Kind::Info, -1, format("no active sub with id {}", id)});
+                } catch (...) {
+                    log.Append({LogEntry::Kind::Info, -1, "usage: :cancel [id]"});
                 }
-                append({LogEntry::Kind::Error, -1, msg});
-            });
-    };
-
-    auto handle_command = [&](const string& cmd) -> bool {
-        if (cmd == ":subs") {
-            const auto ids = active.Ids();
-            if (ids.empty()) {
-                append({LogEntry::Kind::Info, -1, "no active subscriptions"});
-            } else {
-                string s = "active:";
-                for (int id : ids)
-                    s += " sub:" + to_string(id);
-                append({LogEntry::Kind::Info, -1, s});
+                screen.PostEvent(Event::Custom);
             }
-            return true;
-        }
-        if (cmd == ":cancel") {
-            active.CancelAll();
-            append({LogEntry::Kind::Info, -1, "all subscriptions cancelled"});
-            screen.PostEvent(Event::Custom);
-            return true;
-        }
-        if (cmd.starts_with(":cancel ")) {
-            try {
-                const int id = stoi(cmd.substr(8));
-                if (active.Cancel(id)) append({LogEntry::Kind::Info, -1, "sub:" + to_string(id) + " cancelled"});
-                else append({LogEntry::Kind::Info, -1, "no active sub with id " + to_string(id)});
-            } catch (...) {
-                append({LogEntry::Kind::Info, -1, "usage: :cancel [id]"});
+            else {
+                try {
+                    request.Execute(ParseInput(input));
+                } catch (...) {
+                    log.Append({LogEntry::Kind::Error, -1, "Not a command or a GraphQL query message"});
+                }
             }
-            screen.PostEvent(Event::Custom);
-            return true;
+            input.clear();
         }
-        return false;
-    };
+    });
 
-    // Input
-    string input_content;
-    InputOption input_opt;
-    input_opt.multiline = false;
-    input_opt.on_enter = [&] {
-        const string txt = input_content;
-        input_content.clear();
-        if (txt.empty()) return;
-        append({LogEntry::Kind::Info, -1, "> " + txt});
-        if (!handle_command(txt)) execute(ParseInput(txt));
-    };
-    auto input_component = Input(&input_content, "GraphQL query/mutation/subscription  :subs  :cancel [id]", input_opt);
-
-    // Log renderer
-    auto log_renderer = Renderer([&]() {
-        vector<LogEntry> snapshot;
-        {
-            lock_guard lock(log.mtx);
-            snapshot = {log.entries.begin(), log.entries.end()};
-        }
+    auto logRenderer = Renderer([&] {
+        auto snapshot = log.Entries();
         if (snapshot.empty()) return text("") | flex;
 
-        const int n = (int) snapshot.size();
-        const int target = focus_line < 0 || focus_line >= n ? n - 1 : focus_line;
+        const int target = focusLine < 0 || focusLine >= snapshot.size() ? snapshot.size() - 1 : focusLine;
 
-        Elements elems;
-        for (int i = 0; i < n; ++i) {
-            Element e = RenderEntry(snapshot[i]);
-            if (i == target) e = e | focus;
-            elems.push_back(std::move(e));
-        }
-        return vbox(elems) | vscroll_indicator | frame | flex;
+        return vbox(to_vector(std::views::iota(0, static_cast<int>(snapshot.size()))
+            | std::views::transform([&](int i) {
+                auto e = RenderEntry(snapshot[i]);
+                return i == target ? e = e | focus : e;
+            }))) | vscroll_indicator | frame | flex;
     });
 
-    // Status bar
-    auto status_bar = Renderer([&]() -> Element {
+    auto statusBar = Renderer([&]() {
         const auto ids = active.Ids();
-        if (ids.empty()) return text("");
-        Elements parts = {text("  active: ") | bold};
-        for (int id : ids) {
-            parts.push_back(text("sub:" + to_string(id)) | color(Color::Cyan) | bold);
-            parts.push_back(text("  "));
-        }
-        return hbox(parts);
+        return !ids.empty() ? hbox({text("  active: ") | bold, hbox(ids | views::transform([](int id) {
+           return hbox({text("sub:" + to_string(id)) | color(Color::Cyan) | bold, text("  ")});
+        }))}) : text("");
     });
 
-    auto layout = Container::Vertical({log_renderer, input_component});
-
-    auto renderer = Renderer(layout, [&]() {
-        const auto ids = active.Ids();
-        Elements elems = {
-            hbox({
-                text(" gqlxy ") | bold | color(Color::Blue),
-                text("· ") | dim,
-                text(url) | dim,
-                wsUrl.empty() ? text("") : text("  ws: " + wsUrl) | dim,
-            }),
-            separator(),
-            log_renderer->Render() | flex,
-            separator(),
-        };
-        if (!ids.empty()) {
-            elems.push_back(status_bar->Render());
-            elems.push_back(separator());
-        }
-        elems.push_back(hbox({text(" > ") | bold, input_component->Render() | flex}));
-        elems.push_back(text("  Enter: send  Ctrl-C: quit  :subs  :cancel [id]") | dim);
-        return vbox(elems);
-    });
-
-    auto root = CatchEvent(renderer, [&](Event e) {
-        if (e == Event::CtrlC) {
-            active.CancelAll();
-            screen.ExitLoopClosure()();
-            return true;
-        }
-        if (e.is_mouse()) {
-            const int n = (int) log.Size();
-            if (n == 0) return false;
-            const int current = focus_line < 0 || focus_line >= n ? n - 1 : focus_line;
-            if (e.mouse().button == Mouse::WheelUp) {
-                focus_line = max(0, current - 3);
+    auto root = CatchEvent(
+        Renderer(
+            Container::Vertical({logRenderer, inputComponent}),
+            [&] {
+                return vbox(concat(Elements {
+                    hbox({
+                        text(" gqlxy ") | bold | color(Color::Blue),
+                        text("\u00B7 ") | dim,
+                        text(url) | dim,
+                        !wsUrl.empty() ? text(format("  ws: {}", wsUrl)) | dim : text(""),
+                    }),
+                    separator(),
+                    logRenderer->Render() | flex,
+                    separator(),
+                }, active.Ids().empty() ? Elements{
+                    statusBar->Render(),
+                    separator(),
+                } : Elements{}, Elements{
+                    hbox({text(" > ") | bold, inputComponent->Render() | flex}),
+                    text("  Enter: send  Ctrl-C: quit  :subs  :cancel [id]") | dim
+                }));
+            }
+        ), [&](Event e) {
+            if (e == Event::CtrlC) {
+                active.CancelAll();
+                screen.ExitLoopClosure()();
                 return true;
             }
-            if (e.mouse().button == Mouse::WheelDown) {
-                const int next = min(n - 1, current + 3);
-                focus_line = next >= n - 1 ? -1 : next;
+            if (e.is_mouse()) {
+                int n = log.Size();
+                if (n == 0) return false;
+                const int current = focusLine < 0 || focusLine >= n ? n - 1 : focusLine;
+                switch (e.mouse().button) {
+                    case Mouse::WheelUp: {
+                        focusLine = max(0, current - 3);
+                        break;
+                    }
+                    case Mouse::WheelDown: {
+                        const int next = min(n - 1, current + 3);
+                        focusLine = next >= n - 1 ? -1 : next;
+                        break;
+                    }
+                    default:
+                        return false;
+                }
                 return true;
             }
+            return false;
         }
-        return false;
-    });
+    );
 
-    append({LogEntry::Kind::Info, -1, "Connected to " + url});
+    log.Append({LogEntry::Kind::Info, -1, "Connected to " + url});
     screen.Loop(root);
     active.CancelAll();
-    cerr.rdbuf(prev_cerr);
+    cerr.rdbuf(previousCerr);
     return 0;
 }

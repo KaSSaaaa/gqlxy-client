@@ -2,6 +2,7 @@
 #include <gqlxy/internal/url.h>
 #include <gqlxy/links/http_link.h>
 #include <gqlxy/links/ws_link.h>
+#include <gqlxy/results.h>
 #include <gtest/gtest.h>
 
 using namespace std;
