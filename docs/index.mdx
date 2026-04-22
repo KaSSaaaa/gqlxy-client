@@ -1,0 +1,19 @@
+---
+title: "Introduction to GQLXY Client"
+subtitle: "A C++20 GraphQL client with normalized caching, coroutine support, and reactive subscriptions."
+description: "GQLXY Client is a C++20 GraphQL client library built on Boost.Beast and RxCPP. It handles HTTP, WebSocket, and SSE transports, Apollo-style normalized caching, and async coroutine integration."
+---
+
+**GQLXY Client is a C++20 GraphQL client library** that gives your application a full-featured GraphQL client — normalized caching, multiple transport protocols, reactive subscriptions, and C++20 coroutine support — without imposing a framework on your codebase.
+
+It follows the same design philosophy as `@apollo/client` for JavaScript: a transport link chain that is fully composable, an `InMemoryCache` that normalizes entities by `__typename:id`, and an `Observable<T>` type that bridges both `co_await` and reactive (`rxcpp`) usage styles.
+
+### What GQLXY Client provides
+
+- **Link-based transport** — compose `HttpLink`, `WsLink`, and `SplitLink` to route queries and subscriptions to the right endpoint.
+- **Normalized `InMemoryCache`** — entities are stored once and referenced by key; mutations automatically update all queries that depend on the same entity.
+- **Fetch policies** — `CacheFirst`, `NetworkOnly`, `CacheAndNetwork`, `NoCache` — per query, with a client-level default.
+- **C++20 coroutines** — `co_await` a query or mutation directly; `Subscribe()` returns an `Observable` for streaming use.
+- **Reactive API** — every method returns `Observable<GraphQLResponse>`, which wraps an `rxcpp::observable` and supports `.subscribe()` for event-driven code.
+- **Document transforms** — `AddTypename` is applied automatically so the cache can identify object types; plug in custom transforms for persisted queries, analytics, etc.
+- **TLS everywhere** — `https://` and `wss://` work out of the box; pass a custom CA certificate for self-signed setups.
