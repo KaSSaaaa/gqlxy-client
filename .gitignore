@@ -44,3 +44,4 @@
 .vscode/
 out/
 cmake-build-*/
+.DS_Store
