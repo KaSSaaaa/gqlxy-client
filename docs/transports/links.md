@@ -35,11 +35,11 @@ struct LinkOptions {
 using HttpLinkOptions = LinkOptions;
 ```
 
-| Field | Description |
-|---|---|
-| `url` | Full HTTP or HTTPS endpoint URL |
+| Field     | Description                                                                               |
+|-----------|-------------------------------------------------------------------------------------------|
+| `url`     | Full HTTP or HTTPS endpoint URL                                                           |
 | `headers` | `std::map<std::string, std::string>` of additional request headers (e.g. `Authorization`) |
-| `caCert` | PEM string for self-signed certificate verification. Omit to use the system trust store. |
+| `caCert`  | PEM string for self-signed certificate verification. Omit to use the system trust store.  |
 
 ### TLS (HTTPS)
 

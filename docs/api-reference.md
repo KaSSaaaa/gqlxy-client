@@ -10,10 +10,10 @@ Top-level entry point. Constructed with a `ClientOptions` struct.
 #include <gqlxy/client.h>
 
 struct ClientOptions {
-    std::shared_ptr<Link>                link;
-    std::shared_ptr<Cache>               cache;
-    FetchPolicy                          defaultFetchPolicy = FetchPolicy::CacheFirst;
-    std::vector<DocumentTransform>       documentTransforms = { AddTypename };
+    std::shared_ptr<Link> link;
+    std::shared_ptr<Cache cache;
+    FetchPolicy defaultFetchPolicy = FetchPolicy::CacheFirst;
+    std::vector<DocumentTransform> documentTransforms = { AddTypename };
 };
 
 Client(const ClientOptions& options);
@@ -21,12 +21,12 @@ Client(const ClientOptions& options);
 
 ### Methods
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `Query(QueryOptions)` | `Observable<GraphQLResponse>` | Execute a query; respects fetch policy and cache |
-| `Mutation(MutationOptions)` | `Observable<GraphQLResponse>` | Execute a mutation; always goes to the network |
-| `Subscribe(SubscribeOptions)` | `Observable<GraphQLResponse>` | Open a subscription event stream |
-| `Refetch(QueryOptions)` | `Observable<GraphQLResponse>` | Re-execute a query with `NetworkOnly`, updating the cache |
+| Method                        | Returns                       | Description                                               |
+|-------------------------------|-------------------------------|-----------------------------------------------------------|
+| `Query(QueryOptions)`         | `Observable<GraphQLResponse>` | Execute a query; respects fetch policy and cache          |
+| `Mutation(MutationOptions)`   | `Observable<GraphQLResponse>` | Execute a mutation; always goes to the network            |
+| `Subscribe(SubscribeOptions)` | `Observable<GraphQLResponse>` | Open a subscription event stream                          |
+| `Refetch(QueryOptions)`       | `Observable<GraphQLResponse>` | Re-execute a query with `NetworkOnly`, updating the cache |
 
 All methods return `Observable<GraphQLResponse>`. Use `co_await` to resolve the first value inside a coroutine, or call `.subscribe()` to attach reactive handlers.
 
@@ -34,18 +34,18 @@ All methods return `Observable<GraphQLResponse>`. Use `co_await` to resolve the 
 
 ```cpp
 struct QueryOptions {
-    std::string                query;
-    nlohmann::json             variables    = nullptr;
+    std::string query;
+    nlohmann::json variables = nullptr;
     std::optional<FetchPolicy> fetchPolicy;  // overrides ClientOptions::defaultFetchPolicy
 };
 
 struct MutationOptions {
-    std::string    query;
+    std::string query;
     nlohmann::json variables = nullptr;
 };
 
 struct SubscribeOptions {
-    std::string    query;
+    std::string query;
     nlohmann::json variables = nullptr;
 };
 ```
@@ -97,7 +97,7 @@ The subscription is cancelled when the handle is destroyed.
 
 ```cpp
 struct GraphQLResponse {
-    std::optional<nlohmann::json>            data;
+    std::optional<nlohmann::json> data;
     std::optional<std::vector<GraphQLError>> errors;
 };
 ```
@@ -110,11 +110,11 @@ Internal request type passed through the link chain.
 
 ```cpp
 struct GraphQLRequest {
-    std::string                      query;
-    nlohmann::json                   variables     = nullptr;
-    std::optional<std::string>       operationName;
-    parser::OperationType            type          = parser::OperationType::QUERY;
-    FetchPolicy                      policy;
+    std::string query;
+    nlohmann::json variables = nullptr;
+    std::optional<std::string> operationName;
+    parser::OperationType type = parser::OperationType::QUERY;
+    FetchPolicy policy;
 };
 ```
 
@@ -152,32 +152,32 @@ Shared configuration struct used by `HttpLink`, `WsLink`, and `SseLink` (each is
 
 ```cpp
 struct LinkOptions {
-    std::string              url;
-    Headers                  headers;
+    std::string url;
+    Headers headers;
     std::optional<std::string> caCert;  // PEM-encoded CA certificate for TLS
 };
 
 using HttpLinkOptions = LinkOptions;
-using WsLinkOptions   = LinkOptions;
-using SseLinkOptions  = LinkOptions;
+using WsLinkOptions = LinkOptions;
+using SseLinkOptions = LinkOptions;
 ```
 
 ### Built-in links
 
-| Class | Transport | Protocol |
-|-------|-----------|----------|
-| `HttpLink` | HTTP/HTTPS POST | `application/json`; falls back to SSE (`text/event-stream`) for subscriptions |
-| `WsLink` | WebSocket | `graphql-transport-ws`; auto-reconnects with back-off |
-| `SseLink` | Server-Sent Events | `graphql-sse` |
-| `SplitLink` | Routes between two links | — |
+| Class       | Transport                | Protocol                                                                      |
+|-------------|--------------------------|-------------------------------------------------------------------------------|
+| `HttpLink`  | HTTP/HTTPS POST          | `application/json`; falls back to SSE (`text/event-stream`) for subscriptions |
+| `WsLink`    | WebSocket                | `graphql-transport-ws`; auto-reconnects with back-off                         |
+| `SseLink`   | Server-Sent Events       | `graphql-sse`                                                                 |
+| `SplitLink` | Routes between two links | —                                                                             |
 
 ### `SplitLink`
 
 ```cpp
 SplitLink(
     std::function<bool(const GraphQLRequest&)> predicate,
-    std::shared_ptr<Link> left,   // used when predicate returns true
-    std::shared_ptr<Link> right   // used when predicate returns false
+    std::shared_ptr<Link> left, // used when predicate returns true
+    std::shared_ptr<Link> right // used when predicate returns false
 );
 ```
 
@@ -190,10 +190,9 @@ Abstract base for cache implementations.
 ```cpp
 class Cache {
 public:
-    virtual std::optional<GraphQLResponse> Read(const GraphQLRequest& request)                     = 0;
-    virtual void                           Write(const GraphQLRequest& request,
-                                                 const GraphQLResponse& result)                    = 0;
-    virtual void                           Evict(const GraphQLRequest& request)                    = 0;
+    virtual std::optional<GraphQLResponse> Read(const GraphQLRequest& request) = 0;
+    virtual void Write(const GraphQLRequest& request, const GraphQLResponse& result) = 0;
+    virtual void Evict(const GraphQLRequest& request) = 0;
 };
 ```
 
@@ -205,8 +204,8 @@ Normalized, thread-safe entity store.
 InMemoryCache();
 explicit InMemoryCache(const InMemoryCacheOptions& options);
 
-void         EvictEntity(const std::string& entityId);  // e.g. "User:42"
-nlohmann::json Extract();                               // snapshot of the entity store
+void EvictEntity(const std::string& entityId);  // e.g. "User:42"
+nlohmann::json Extract();                       // snapshot of the entity store
 ```
 
 ```cpp
