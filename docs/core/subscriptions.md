@@ -49,7 +49,7 @@ auto client = gqlxy::Client({
         [](const GraphQLRequest& req) {
             // When true, the request will use the first link.
             // Otherwise, it will use the second one.
-            return req.type != parser::OperationType::Subscription;
+            return req.type != parser::OperationType::SUBSCRIPTION;
         },
         make_shared<HttpLink>(HttpLinkOptions{
             .url = "http://localhost:4000/graphql"
@@ -130,7 +130,7 @@ Subscription sub = stream
 
 ## Error handling
 
-Transport errors (e.g. WebSocket disconnect) are delivered through the `on_error` callback and terminates the observable.
+Transport errors (e.g. WebSocket disconnect) are delivered through the `on_error` callback and terminate the observable.
 `WsLink` performs automatic reconnection at the transport level. A brief disconnect will be recovered transparently without
 surfacing an error to the subscription unless the retry budget is exhausted.
 

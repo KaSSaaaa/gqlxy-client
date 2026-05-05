@@ -8,7 +8,7 @@ description: How to execute queries with gqlxy-client
 With gqlxy-client, you can execute your queries in 2 ways:
 
 ### C++20 Coroutine
-You can use coroutines to `co_await` on you request:
+You can use coroutines to `co_await` on your request:
 
 ```cpp
 boost::asio::awaitable<void> run(Client& client) {

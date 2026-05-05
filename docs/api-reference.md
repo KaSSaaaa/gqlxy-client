@@ -11,7 +11,7 @@ Top-level entry point. Constructed with a `ClientOptions` struct.
 
 struct ClientOptions {
     std::shared_ptr<Link> link;
-    std::shared_ptr<Cache cache;
+    std::shared_ptr<Cache> cache;
     FetchPolicy defaultFetchPolicy = FetchPolicy::CacheFirst;
     std::vector<DocumentTransform> documentTransforms = { AddTypename };
 };
