@@ -30,7 +30,7 @@ Result<T> to_result(gqlxy::Observable<T> obs) {
         return callback();
     };
 
-    obs.subscribe(
+    auto sub = obs.subscribe(
         [&](const T& v) { locked([&]() { out.values.push_back(v); });
         },
         [&](std::exception_ptr e) {

@@ -5,6 +5,14 @@ endif()
 file(GLOB_RECURSE SOURCES_FILES *.cpp)
 add_library(gqlxy_client ${SOURCES_FILES})
 target_compile_features(gqlxy_client PUBLIC cxx_std_20)
+
+if(MSVC)
+    target_compile_definitions(gqlxy_client PRIVATE _WIN32_WINNT=0x0A00)
+    set_source_files_properties(
+        gqlxy/internal/http/https_stream.cpp
+        PROPERTIES COMPILE_FLAGS /bigobj
+    )
+endif()
 target_include_directories(gqlxy_client
 	PUBLIC
 		$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>

@@ -75,7 +75,7 @@ jobs:
 
       - name: Set up MSVC (Windows)
         if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@v1.13.0
         with:
           arch: x64
 

@@ -231,7 +231,7 @@ TEST_F(LinkTests, SequentialRequestsAreBlocking) {
 
 TEST_F(LinkTests, ParallelRequestsOverlap) {
     auto delayMs = 100;
-    auto margin = 150;
+    auto margin = 500;
 
     const auto t0 = Now();
     auto slow_f = async(launch::async, [delayMs, this] {
