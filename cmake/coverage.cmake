@@ -6,6 +6,10 @@ find_program(GCOV_EXECUTABLE NAMES "${_gcov_name}" gcov REQUIRED)
 
 set(COVERAGE_HTML_DIR ${CMAKE_SOURCE_DIR}/coverage)
 
+if (TARGET coverage)
+    return()
+endif ()
+
 add_custom_target(coverage
     COMMENT "Generating HTML coverage report -> ${COVERAGE_HTML_DIR}/index.html"
     COMMAND ${CMAKE_CTEST_COMMAND}

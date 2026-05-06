@@ -1,11 +1,13 @@
-#include <gqlxy/links/ws_link.h>
-
-#include <gqlxy/internal/ws/connection/ws_connection_context.h>
 #include <boost/uuid/uuid_io.hpp>
+#include <gqlxy/internal/ws/connection/ws_connection_context.h>
+#include <gqlxy/links/ws_link.h>
+#include <gqlxy/results.h>
+#include <rpp/sources/create.hpp>
 
 using namespace std;
 using namespace gqlxy;
-using namespace rxcpp;
+using namespace rpp;
+using namespace rpp::source;
 using namespace boost;
 
 WsLink::WsLink(const WsLinkOptions& options)
@@ -17,10 +19,12 @@ WsLink::~WsLink() {
 }
 
 Observable<GraphQLResponse> WsLink::Execute(const GraphQLRequest& request) {
-    return observable<>::create<GraphQLResponse>([conn = _connection, req = request, this](const auto& s) {
+    return create<GraphQLResponse>([conn = _connection, req = request, this](dynamic_observer<GraphQLResponse>&& sub) {
         const auto id = GenerateId();
-        s.add([conn, id]() { conn->Unsubscribe(id); });
-        conn->Subscribe(id, req, s);
+        sub.set_upstream(make_callback_disposable([conn, id]() noexcept {
+            conn->Unsubscribe(id);
+        }));
+        conn->Subscribe(id, req, std::move(sub));
     });
 }
 

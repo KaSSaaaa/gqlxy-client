@@ -7,4 +7,5 @@ target_include_directories(gqlxy_client_unit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/tests
 )
+
 gtest_discover_tests(gqlxy_client_unit_tests)

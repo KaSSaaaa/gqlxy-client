@@ -178,10 +178,10 @@ public:
 
     gqlxy::Observable<gqlxy::GraphQLResponse> Execute(const gqlxy::GraphQLRequest& request) override {
         std::cout << "→ " << request.query << "\n";
-        return static_cast<rxcpp::observable<gqlxy::GraphQLResponse>>(_inner->Execute(request))
-            .tap([](const gqlxy::GraphQLResponse& r) {
+        return (static_cast<rpp::dynamic_observable<gqlxy::GraphQLResponse>>(_inner->Execute(request))
+            | rpp::operators::tap([](const gqlxy::GraphQLResponse& r) {
                 std::cout << "← " << (r.data ? r.data->dump() : "<no data>") << "\n";
-            });
+            })).as_dynamic();
     }
 
 private:

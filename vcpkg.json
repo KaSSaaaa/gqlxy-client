@@ -6,7 +6,7 @@
   "license": "MIT",
   "supports": "!uwp",
   "dependencies": [
-    "rxcpp",
+    "reactiveplusplus",
     "nlohmann-json",
     "boost-beast",
     "boost-url",

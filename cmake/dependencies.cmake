@@ -3,16 +3,12 @@ if(NOT TARGET gqlxy::core)
     FetchContent_Declare(
         gqlxy-core
         GIT_REPOSITORY https://github.com/KaSSaaaa/gqlxy-core.git
-        GIT_TAG        main
+        GIT_TAG        02faf2da892525dc90677a4aff1c80a04f640151
     )
     FetchContent_MakeAvailable(gqlxy-core)
 endif()
 
-find_package(rxcpp CONFIG REQUIRED)
-get_target_property(_rxcpp_include_dir rxcpp INTERFACE_INCLUDE_DIRECTORIES)
-get_filename_component(_rxcpp_include_root "${_rxcpp_include_dir}" DIRECTORY)
-set_property(TARGET rxcpp PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${_rxcpp_include_root}")
-
+find_package(RPP CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(boost_beast CONFIG REQUIRED)
 find_package(boost_url CONFIG REQUIRED)

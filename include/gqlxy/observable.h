@@ -1,12 +1,13 @@
 #pragma once
 
 #include <gqlxy/subscription.h>
+#include <rpp/observables/dynamic_observable.hpp>
+#include <rpp/operators/take.hpp>
 #include <atomic>
 #include <coroutine>
 #include <exception>
 #include <memory>
 #include <optional>
-#include <rxcpp/rx.hpp>
 #include <stdexcept>
 
 namespace gqlxy {
@@ -17,25 +18,26 @@ public:
     Observable() = default;
 
     template<typename Source>
-    Observable(rxcpp::observable<T, Source> inner) : _inner(inner.as_dynamic()) {}
+    Observable(rpp::observable<T, Source> inner) : _inner(inner.as_dynamic()) {}
 
     template<typename OnNext>
-    Subscription subscribe(OnNext&& on_next) const {
-        return Subscription{_inner.subscribe(std::forward<OnNext>(on_next))};
+    Subscription subscribe(OnNext&& onNext) const {
+        return subscribe(onNext, [](const auto&){});
     }
 
     template<typename OnNext, typename OnError>
-    Subscription subscribe(OnNext&& on_next, OnError&& on_error) const {
-        return Subscription{_inner.subscribe(std::forward<OnNext>(on_next), std::forward<OnError>(on_error))};
+    Subscription subscribe(OnNext&& onNext, OnError&& onError) const {
+        return subscribe(onNext, onError, [](){});
     }
 
     template<typename OnNext, typename OnError, typename OnCompleted>
     Subscription subscribe(OnNext&& on_next, OnError&& on_error, OnCompleted&& on_completed) const {
-        return Subscription{_inner.subscribe(
-            std::forward<OnNext>(on_next), std::forward<OnError>(on_error), std::forward<OnCompleted>(on_completed))};
+        auto disposable = rpp::composite_disposable_wrapper::make();
+        _inner.subscribe(disposable, std::forward<OnNext>(on_next), std::forward<OnError>(on_error), std::forward<OnCompleted>(on_completed));
+        return Subscription {disposable};
     }
 
-    operator rxcpp::observable<T>() const {
+    operator rpp::dynamic_observable<T>() const {
         return _inner;
     }
 
@@ -44,7 +46,7 @@ public:
     }
 
 private:
-    rxcpp::observable<T> _inner;
+    rpp::dynamic_observable<T> _inner;
 
     struct AwaiterState {
         std::optional<T> value;
@@ -53,7 +55,7 @@ private:
     };
 
     struct Awaiter {
-        rxcpp::observable<T> observable;
+        rpp::dynamic_observable<T> observable;
         std::shared_ptr<AwaiterState> state = std::make_shared<AwaiterState>();
 
         bool await_ready() noexcept {
@@ -61,7 +63,7 @@ private:
         }
 
         void await_suspend(std::coroutine_handle<> handle) {
-            observable.take(1).subscribe(
+            (observable | rpp::operators::take(1)).subscribe(
                 [s = state, h = handle](const T& v) {
                     s->value = v;
                     if (!s->resumed.exchange(true)) h.resume();

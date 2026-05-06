@@ -3,6 +3,7 @@
 #include <gqlxy/observable.h>
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <condition_variable>
 #include <exception>
 #include <mutex>
@@ -24,19 +25,25 @@ Result<T> to_result(gqlxy::Observable<T> obs) {
     std::mutex mtx;
     std::condition_variable cv;
 
+    auto locked = [&mtx](const auto& callback) {
+        std::lock_guard lock(mtx);
+        return callback();
+    };
+
     obs.subscribe(
-        [&](const T& v) { out.values.push_back(v); },
+        [&](const T& v) { locked([&]() { out.values.push_back(v); });
+        },
         [&](std::exception_ptr e) {
-            out.exception = e;
+            locked([&]() { out.exception = e; });
             cv.notify_one();
         },
         [&]() {
-            out.completed = true;
+            locked([&]() { out.completed = true; });
             cv.notify_one();
         });
 
-    std::unique_lock lk(mtx);
-    cv.wait(lk, [&] { return out.done(); });
+    std::unique_lock lock(mtx);
+    cv.wait_for(lock, std::chrono::seconds(10), [&] { return out.done(); });
     return out;
 }
 

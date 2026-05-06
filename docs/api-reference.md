@@ -54,7 +54,7 @@ struct SubscribeOptions {
 
 ## `gqlxy::Observable<T>`
 
-Thin wrapper around `rxcpp::observable<T>`.
+Thin wrapper around `rpp::dynamic_observable<T>`.
 
 ```cpp
 template<typename T>
@@ -68,8 +68,8 @@ public:
     // Resolves the first emitted value inside a C++20 coroutine
     auto operator co_await() const;
 
-    // Implicit conversion — allows using the full rxcpp operator set
-    operator rxcpp::observable<T>() const;
+    // Implicit conversion to rpp::dynamic_observable<T> — allows using the full RPP operator set
+    operator rpp::dynamic_observable<T>() const;
 };
 ```
 

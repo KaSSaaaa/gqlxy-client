@@ -103,12 +103,12 @@ Subscription sub = client.Subscribe({
 }).subscribe(...);
 ```
 
-## Using rxcpp operators
+## Using RPP operators
 
-`Observable<GraphQLResponse>` can be converted implicitly to `rxcpp::observable<GraphQLResponse>`, giving access to the full rxcpp operator set:
+`Observable<GraphQLResponse>` converts implicitly to `rpp::dynamic_observable<GraphQLResponse>`, giving access to the full RPP operator set:
 
 ```cpp
-rxcpp::observable<GraphQLResponse> stream = client.Subscribe({
+rpp::dynamic_observable<GraphQLResponse> stream = client.Subscribe({
     .query = R"(
         subscription {
             priceUpdated {
@@ -120,9 +120,9 @@ rxcpp::observable<GraphQLResponse> stream = client.Subscribe({
     )"
 });
 
-Subscription sub = stream
-    .filter([](const GraphQLResponse& r) { return r.data.has_value(); })
-    .map([](const GraphQLResponse& r) { return (*r.data)["priceUpdated"]; })
+Subscription sub = (stream
+    | rpp::operators::filter([](const GraphQLResponse& r) { return r.data.has_value(); })
+    | rpp::operators::map([](const GraphQLResponse& r) { return (*r.data)["priceUpdated"]; }))
     .subscribe([](const nlohmann::json& tick) {
         std::cout << format("{} {}/{}", tick["symbol"].get<std::string>(), tick["bid"], tick["ask"]) << std::endl;
     });

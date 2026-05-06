@@ -3,12 +3,18 @@
 #include <gqlxy/print.h>
 #include <gqlxy/results.h>
 #include <gqlxy/utils/ranges.h>
+#include <rpp/operators/tap.hpp>
+#include <rpp/sources/concat.hpp>
+#include <rpp/sources/just.hpp>
 
 using namespace std;
 using namespace gqlxy;
 using namespace gqlxy::parser;
 using namespace gqlxy::utils;
 using namespace nlohmann;
+using namespace rpp;
+using namespace rpp::source;
+using namespace rpp::operators;
 
 Client::Client(const ClientOptions& options) : _options(options) {}
 
@@ -51,13 +57,13 @@ Observable<GraphQLResponse> Client::Refetch(const QueryOptions& opts) {
 
 Observable<GraphQLResponse> Client::FetchFromNetwork(const GraphQLRequest& request) {
     auto cache = _options.cache;
-    auto networkObs = static_cast<rxcpp::observable<GraphQLResponse>>(_options.link->Execute(request));
+    dynamic_observable<GraphQLResponse> networkObs = _options.link->Execute(request);
 
     if (!cache) return networkObs;
 
-    return networkObs.tap([cache, request](const GraphQLResponse& result) {
+    return (networkObs | tap([cache, request](const GraphQLResponse& result) {
         if (result.data) cache->Write(request, result);
-    });
+    })).as_dynamic();
 }
 
 Observable<GraphQLResponse> Client::Execute(const GraphQLRequest& request) {
@@ -68,12 +74,12 @@ Observable<GraphQLResponse> Client::Execute(const GraphQLRequest& request) {
         case FetchPolicy::NoCache: return _options.link->Execute(request);
         case FetchPolicy::NetworkOnly: return FetchFromNetwork(request);
         case FetchPolicy::CacheFirst:
-            if (auto cached = _options.cache->Read(request)) return rxcpp::observable<>::just(std::move(*cached));
+            if (auto cached = _options.cache->Read(request)) return just(std::move(*cached)).as_dynamic();
             return FetchFromNetwork(request);
         default:
             auto cached = _options.cache->Read(request);
-            auto network = static_cast<rxcpp::observable<GraphQLResponse>>(FetchFromNetwork(request));
-            if (cached) return rxcpp::observable<>::just(std::move(*cached)).concat(network);
+            dynamic_observable<GraphQLResponse> network = FetchFromNetwork(request);
+            if (cached) return concat(just(std::move(*cached)), network).as_dynamic();
             return network;
     }
 }

@@ -12,6 +12,7 @@
 #include <gqlxy/subscription.h>
 #include <gqlxy/utils/optional.h>
 #include <gqlxy/utils/ranges.h>
+#include <iostream>
 #include <map>
 #include <mutex>
 #include <nlohmann/json.hpp>

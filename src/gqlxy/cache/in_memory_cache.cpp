@@ -7,6 +7,8 @@
 #include <gqlxy/utils/optional.h>
 #include <gqlxy/utils/ranges.h>
 #include <gqlxy/utils/visit.h>
+#include <format>
+#include <mutex>
 
 using namespace std;
 using namespace gqlxy;
@@ -14,8 +16,8 @@ using namespace gqlxy::parser;
 using namespace gqlxy::utils;
 using namespace nlohmann;
 
-static constexpr string RootQuery = "QUERY_ROOT";
-static constexpr string RootMutation = "MUTATION_ROOT";
+static constexpr string_view RootQuery = "QUERY_ROOT";
+static constexpr string_view RootMutation = "MUTATION_ROOT";
 
 static string FieldStoreKey(const string& fieldName, const vector<Argument>& args, const json& variables) {
     if (args.empty()) return fieldName;

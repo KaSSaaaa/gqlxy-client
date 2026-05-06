@@ -15,4 +15,5 @@ target_include_directories(gqlxy_client_e2e_tests PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}"
   "${gqlxy-server_SOURCE_DIR}/include"
 )
+
 gtest_discover_tests(gqlxy_client_e2e_tests PROPERTIES TIMEOUT 60)

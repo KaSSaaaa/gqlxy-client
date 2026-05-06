@@ -16,7 +16,7 @@ using namespace gqlxy;
 using namespace gqlxy::internal;
 using namespace gqlxy::utils;
 using namespace boost::asio;
-using namespace rxcpp;
+using namespace rpp;
 using nlohmann::json;
 
 WsConnectionContext::WsConnectionContext(const WsLinkOptions& opts) : _reconnectTimer(AsioContext::Get()), _opts(opts) {
@@ -31,7 +31,7 @@ WsConnectionContext::~WsConnectionContext() {
     Stop();
 }
 
-void WsConnectionContext::Subscribe(const string& id, const GraphQLRequest& req, const subscriber<GraphQLResponse>& sub) {
+void WsConnectionContext::Subscribe(const string& id, const GraphQLRequest& req, const dynamic_observer<GraphQLResponse>& sub) {
     post(AsioContext::Get(), [self = shared_from_this(), id, req, sub]() {
         if (self->_initError) return sub.on_error(self->_initError);
         if (self->_stopping) return sub.on_completed();
@@ -58,14 +58,13 @@ void WsConnectionContext::Stop() {
 
 void WsConnectionContext::StopOnContext() {
     _reconnectTimer.cancel();
-    for (const auto& [_, subscriber] : _subs | views::values)
-        subscriber.on_completed();
+    for (const auto& [_, subscription] : _subs | views::values)
+        subscription.on_completed();
     _subs.clear();
     if (_transport) _transport->Close();
 }
 
-void WsConnectionContext::OnSubscribe(
-    const string& id, const GraphQLRequest& req, const subscriber<GraphQLResponse>& sub) {
+void WsConnectionContext::OnSubscribe(const string& id, const GraphQLRequest& req, const dynamic_observer<GraphQLResponse>& sub) {
     AddSub(id, req, sub);
     switch (_state) {
         case ConnectionState::Idle: TransitionTo(ConnectionState::Connecting); break;
@@ -133,7 +132,8 @@ void WsConnectionContext::TransitionTo(ConnectionState state) {
     }
 }
 
-void WsConnectionContext::AddSub(const string& id, const GraphQLRequest& req, const subscriber<GraphQLResponse>& sub) {
+void WsConnectionContext::AddSub(
+    const string& id, const GraphQLRequest& req, const rpp::dynamic_observer<GraphQLResponse>& sub) {
     _subs.emplace(id, WsSubscription {req, sub});
 }
 
@@ -151,8 +151,8 @@ void WsConnectionContext::ReplaySubs() {
 }
 
 void WsConnectionContext::FailAll(const exception_ptr& ex) {
-    for (const auto& [_, subscriber] : _subs | views::values)
-        subscriber.on_error(ex);
+    for (const auto& [_, subscription] : _subs | views::values)
+        subscription.on_error(ex);
     _subs.clear();
 }
 

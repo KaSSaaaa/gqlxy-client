@@ -13,19 +13,20 @@
 #include <gqlxy/internal/http/serialization.h>
 #include <gqlxy/internal/url.h>
 #include <gqlxy/results.h>
+#include <rpp/sources/create.hpp>
 
 namespace gqlxy::internal {
 
 template<typename Stream>
 class HttpStreamBase : public IHttpStream {
 public:
-    rxcpp::observable<GraphQLResponse> Send(const GraphQLRequest& request, const Headers& headers) override {
-        return rxcpp::observable<>::create<GraphQLResponse>([this, request, headers](auto sub) {
+    rpp::dynamic_observable<GraphQLResponse> Send(const GraphQLRequest& request, const Headers& headers) override {
+        return rpp::source::create<GraphQLResponse>([this, request, headers](auto sub) {
             boost::asio::co_spawn(
                 boost::beast::get_lowest_layer(_stream).get_executor(),
                 Send(BuildRequest(request, headers), request.type._value == parser::OperationType::SUBSCRIPTION, std::move(sub)),
                 boost::asio::detached);
-        });
+        }).as_dynamic();
     }
 
 protected:
@@ -62,25 +63,23 @@ private:
     }
 
     boost::asio::awaitable<void> Send(boost::beast::http::request<boost::beast::http::string_body> req, bool isSse,
-                                      rxcpp::subscriber<GraphQLResponse> sub) {
+                                      rpp::dynamic_observer<GraphQLResponse> sub) {
         try {
             co_await Connect(_url.host, _url.port);
             co_await Write(req);
 
             boost::asio::steady_timer done(co_await boost::asio::this_coro::executor, boost::asio::steady_timer::time_point::max());
 
-            rxcpp::composite_subscription cs;
             Read(isSse).subscribe(
-                rxcpp::make_subscriber<GraphQLResponse>(
-                    cs, [&sub](const GraphQLResponse& r) { sub.on_next(r); },
-                    [&sub, &done](const std::exception_ptr& e) {
-                        sub.on_error(e);
-                        done.cancel();
-                    },
-                    [&sub, &done]() {
-                        sub.on_completed();
-                        done.cancel();
-                    }));
+                [&sub](const GraphQLResponse& r) { sub.on_next(r); },
+                [&sub, &done](const std::exception_ptr& e) {
+                    sub.on_error(e);
+                    done.cancel();
+                },
+                [&sub, &done]() {
+                    sub.on_completed();
+                    done.cancel();
+                });
 
             boost::beast::error_code ec;
             co_await done.async_wait(boost::asio::redirect_error(boost::asio::use_awaitable, ec));
@@ -90,15 +89,15 @@ private:
         }
     }
 
-    rxcpp::observable<GraphQLResponse> Read(bool isSse) {
-        return rxcpp::observable<>::create<GraphQLResponse>([this, isSse](auto sub) {
+    rpp::dynamic_observable<GraphQLResponse> Read(bool isSse) {
+        return rpp::source::create<GraphQLResponse>([this, isSse](auto sub) {
             boost::asio::co_spawn(
                 boost::beast::get_lowest_layer(_stream).get_executor(), Read(std::move(sub), isSse),
                 boost::asio::detached);
-        });
+        }).as_dynamic();
     }
 
-    boost::asio::awaitable<void> Read(rxcpp::subscriber<GraphQLResponse> sub, bool isSse) {
+    boost::asio::awaitable<void> Read(rpp::dynamic_observer<GraphQLResponse> sub, bool isSse) {
         try {
             if (!co_await IsPositiveReply(sub)) co_return;
             co_await (isSse ? OnSseResponse(sub) : OnResponse(sub));
@@ -111,7 +110,7 @@ private:
         sub.on_completed();
     }
 
-    boost::asio::awaitable<bool> IsPositiveReply(rxcpp::subscriber<GraphQLResponse>& sub) {
+    boost::asio::awaitable<bool> IsPositiveReply(rpp::dynamic_observer<GraphQLResponse>& sub) {
         co_await boost::beast::http::async_read_header(_stream, _buf, _parser, boost::asio::use_awaitable);
         const auto& response = _parser.get().base();
         if (response.result() < boost::beast::http::status::bad_request) co_return true;
@@ -120,9 +119,9 @@ private:
         co_return false;
     }
 
-    boost::asio::awaitable<void> OnSseResponse(const rxcpp::subscriber<GraphQLResponse>& sub) {
+    boost::asio::awaitable<void> OnSseResponse(const rpp::dynamic_observer<GraphQLResponse>& sub) {
         std::string payload;
-        while (!_parser.is_done() && sub.is_subscribed()) {
+        while (!_parser.is_done() && !sub.is_disposed()) {
             co_await ReadAsync();
             if (auto& body = _parser.get().body(); !body.empty()) {
                 payload += body;
@@ -137,7 +136,7 @@ private:
         }
     }
 
-    boost::asio::awaitable<void> OnResponse(const rxcpp::subscriber<GraphQLResponse>& sub) {
+    boost::asio::awaitable<void> OnResponse(const rpp::dynamic_observer<GraphQLResponse>& sub) {
         co_await ReadAsync();
         sub.on_next(ParseJsonPayload(_parser.get().body()));
     }

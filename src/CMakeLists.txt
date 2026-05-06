@@ -14,7 +14,7 @@ target_include_directories(gqlxy_client
 )
 target_link_libraries(gqlxy_client
 	PUBLIC
-		rxcpp
+		RPP::rpp
 		nlohmann_json::nlohmann_json
 		gqlxy::core
 	PRIVATE

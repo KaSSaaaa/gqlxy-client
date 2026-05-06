@@ -1,7 +1,7 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(rxcpp CONFIG)
+find_dependency(RPP CONFIG)
 find_dependency(nlohmann_json CONFIG)
 find_dependency(boost_beast CONFIG)
 

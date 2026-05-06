@@ -36,9 +36,9 @@ boost::asio::awaitable<void> run(Client& client) {
 
 `Client::Query()` returns `Observable<GraphQLResponse>`. Awaiting it resolves the first (and only) value from the stream.
 
-### RxCpp
-`Observable<T>` are `rxcpp::observable<T>` internally. Meaning that you can also subscribe to your queries and get notified
-when the request is successful or not:
+### Subscribe style
+`Observable<T>` wraps an `rpp::dynamic_observable<T>`. You can call `.subscribe()` directly to get notified
+when the request succeeds or fails:
 
 ```cpp
 auto sub = client.Query({

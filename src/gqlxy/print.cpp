@@ -1,5 +1,6 @@
 #include <gqlxy/print.h>
 
+#include <format>
 #include <gqlxy/parser/ast/argument.h>
 #include <gqlxy/parser/ast/directive.h>
 #include <gqlxy/parser/ast/document.h>
@@ -8,12 +9,9 @@
 #include <gqlxy/parser/ast/selection.h>
 #include <gqlxy/parser/ast/selection_set.h>
 #include <gqlxy/parser/ast/variable_definition.h>
-#include <iostream>
-#include <ranges>
-
 #include <gqlxy/utils/ranges.h>
 #include <gqlxy/utils/visit.h>
-#include <sstream>
+#include <ranges>
 #include <string>
 
 using namespace std;
