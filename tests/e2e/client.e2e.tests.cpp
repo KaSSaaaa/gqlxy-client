@@ -181,7 +181,7 @@ protected:
     };
 
     static steady_clock::time_point Now() { return steady_clock::now(); }
-    static long ElapsedMs(steady_clock::time_point t0) {
+    static int64_t ElapsedMs(steady_clock::time_point t0) {
         return chrono::duration_cast<milliseconds>(steady_clock::now() - t0).count();
     }
 };

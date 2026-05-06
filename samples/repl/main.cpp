@@ -74,9 +74,9 @@ public:
         _screen.PostEvent(Event::Custom);
     }
 
-    size_t Size() {
+    int Size() {
         lock_guard lock(_mtx);
-        return _entries.size();
+        return static_cast<int>(_entries.size());
     }
 
     vector<LogEntry> Entries() {
@@ -338,9 +338,10 @@ int main() {
         auto snapshot = log.Entries();
         if (snapshot.empty()) return text("") | flex;
 
-        const int target = focusLine < 0 || focusLine >= snapshot.size() ? snapshot.size() - 1 : focusLine;
+        const int size = static_cast<int>(snapshot.size());
+        const int target = focusLine < 0 || focusLine >= size ? size - 1 : focusLine;
 
-        return vbox(to_vector(views::iota(0, static_cast<int>(snapshot.size()))
+        return vbox(to_vector(views::iota(0, size)
             | views::transform([&](int i) {
                 auto e = RenderEntry(snapshot[i]);
                 return i == target ? e | focus : e;

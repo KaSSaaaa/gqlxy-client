@@ -66,20 +66,17 @@ jobs:
         shell: pwsh
         run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
 
-      - name: Cache vcpkg packages
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/out/build/${{ matrix.preset }}/vcpkg_installed
-          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: vcpkg-${{ matrix.triplet }}-
-
       - name: Set up MSVC (Windows)
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1.13.0
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           arch: x64
 
       - name: Configure
+        env:
+          VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
         run: cmake --preset ${{ matrix.preset }}
 
       - name: Build

@@ -16,4 +16,5 @@ target_include_directories(gqlxy_client_e2e_tests PRIVATE
   "${gqlxy-server_SOURCE_DIR}/include"
 )
 
-gtest_discover_tests(gqlxy_client_e2e_tests PROPERTIES TIMEOUT 60)
+add_test(NAME e2e COMMAND gqlxy_client_e2e_tests)
+set_tests_properties(e2e PROPERTIES TIMEOUT 600)
