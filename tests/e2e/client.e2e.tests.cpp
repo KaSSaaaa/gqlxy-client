@@ -230,34 +230,38 @@ TEST_F(LinkTests, SequentialRequestsAreBlocking) {
 }
 
 TEST_F(LinkTests, ParallelRequestsOverlap) {
-    auto delayMs = 100;
-    auto margin = 500;
+    auto delayMs = 500;
 
-    const auto t0 = Now();
-    auto slow_f = async(launch::async, [delayMs, this] {
-        return to_result(_client->Query({
-            .query = R"(
-                query Slow($ms: Int!) {
-                    delay(ms: $ms)
-                }
-            )",
-            .variables = {{"ms", delayMs}},
-        }));
+    const auto slowQuery = R"(
+        query Slow($ms: Int!) {
+            delay(ms: $ms)
+        }
+    )";
+
+    const auto sequential = Now();
+    auto sequentialSlow = to_result(_client->Query({.query = slowQuery, .variables = {{"ms", delayMs}}}));
+    auto sequentialFast = to_result(_client->Query({.query = "{ hello }"}));
+    const auto sequentialMs = ElapsedMs(sequential);
+
+    ASSERT_GQL_SUCCESS(sequentialSlow);
+    ASSERT_GQL_SUCCESS(sequentialFast);
+
+    const auto parallel = Now();
+    auto slowFunction = async(launch::async, [&] {
+        return to_result(_client->Query({.query = slowQuery, .variables = {{"ms", delayMs}}}));
     });
-    auto fast_f = async(launch::async, [this] {
-        return to_result(_client->Query({
-            .query = "{ hello }"
-        }));
+    auto fastFunction = async(launch::async, [&] {
+        return to_result(_client->Query({.query = "{ hello }"}));
     });
+    auto parallelSlow = slowFunction.get();
+    auto parallelFast = fastFunction.get();
+    const auto parallelMs = ElapsedMs(parallel);
 
-    auto slow = slow_f.get();
-    auto fast = fast_f.get();
-    const auto total = ElapsedMs(t0);
+    ASSERT_GQL_SUCCESS(parallelSlow);
+    ASSERT_GQL_SUCCESS(parallelFast);
+    EXPECT_EQ(parallelSlow.values[0].data.value()["delay"], "delayed 500ms");
 
-    ASSERT_GQL_SUCCESS(slow);
-    ASSERT_GQL_SUCCESS(fast);
-    EXPECT_EQ(slow.values[0].data.value()["delay"], "delayed 100ms");
-    EXPECT_LT(total, delayMs + margin);
+    EXPECT_LT(parallelMs, sequentialMs);
 }
 
 class WsLinkPersistenceTest : public Test {
