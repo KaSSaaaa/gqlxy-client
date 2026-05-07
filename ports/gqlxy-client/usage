@@ -1,0 +1,4 @@
+gqlxy-client provides CMake targets:
+
+    find_package(gqlxy-client CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE gqlxy::client)
