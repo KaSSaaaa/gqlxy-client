@@ -1,8 +1,8 @@
 #include "to_result.h"
-#include <gqlxy/internal/url.h>
-#include <gqlxy/links/http_link.h>
-#include <gqlxy/links/ws_link.h>
-#include <gqlxy/results.h>
+#include <gqlxy/client/internal/url.h>
+#include <gqlxy/client/links/http_link.h>
+#include <gqlxy/client/links/ws_link.h>
+#include <gqlxy/core/results.h>
 #include <gtest/gtest.h>
 
 using namespace std;

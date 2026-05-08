@@ -1,0 +1,19 @@
+#pragma once
+
+#include <gqlxy/client/link.h>
+
+namespace gqlxy {
+
+using HttpLinkOptions = LinkOptions;
+
+class HttpLink : public Link {
+public:
+    HttpLink(const HttpLinkOptions& options);
+
+    Observable<GraphQLResponse> Execute(const GraphQLRequest& request) override;
+
+private:
+    HttpLinkOptions _options;
+};
+
+}

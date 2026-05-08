@@ -1,5 +1,5 @@
-#include <gqlxy/internal/http/response.h>
-#include <gqlxy/results.h>
+#include <gqlxy/client/internal/http/response.h>
+#include <gqlxy/core/results.h>
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 

@@ -58,7 +58,11 @@ if (ENABLE_COVERAGE)
     include(cmake/coverage.cmake)
 endif ()
 
-if (PROJECT_IS_TOP_LEVEL)
+if (NOT DEFINED BUILD_SAMPLES)
+    set(BUILD_SAMPLES ${PROJECT_IS_TOP_LEVEL})
+endif ()
+
+if (BUILD_SAMPLES)
     add_subdirectory(samples)
 endif ()
 

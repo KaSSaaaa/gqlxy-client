@@ -25,7 +25,7 @@ target_link_libraries(gqlxy_client
 	PUBLIC
 		RPP::rpp
 		nlohmann_json::nlohmann_json
-		gqlxy::core
+		gqlxy_core::gqlxy_core
 	PRIVATE
 		Boost::beast
 		Boost::url
@@ -33,7 +33,7 @@ target_link_libraries(gqlxy_client
 		OpenSSL::Crypto
 )
 
-add_library(gqlxy::client ALIAS gqlxy_client)
+add_library(gqlxy_client::gqlxy_client ALIAS gqlxy_client)
 
 install(TARGETS gqlxy_client
 	EXPORT gqlxy-clientTargets
@@ -41,7 +41,7 @@ install(TARGETS gqlxy_client
 
 install(EXPORT gqlxy-clientTargets
 	FILE gqlxy-clientTargets.cmake
-	NAMESPACE gqlxy::
+	NAMESPACE gqlxy_client::
 	DESTINATION lib/cmake/gqlxy-client
 )
 

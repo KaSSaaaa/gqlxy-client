@@ -1,11 +1,12 @@
 {
   "name": "gqlxy-client",
   "version": "0.1.0",
-  "description": "C++ GraphQL client with HTTP/WS/SSE support, RxCpp reactivity, and C++20 coroutines",
+  "description": "C++ GraphQL client with HTTP/WS/SSE support, ReactivePlusPlus reactivity, and C++20 coroutines",
   "homepage": "https://github.com/KaSSaaaa/gqlxy-client",
   "license": "MIT",
   "supports": "!uwp",
   "dependencies": [
+    "gqlxy-core",
     "reactiveplusplus",
     "nlohmann-json",
     "boost-beast",
@@ -23,7 +24,11 @@
         "gtest",
         "oatpp",
         "oatpp-websocket",
-        "oatpp-openssl"
+        "oatpp-openssl",
+        {
+          "name": "gqlxy-server",
+          "features": ["standalone-server"]
+        }
       ]
     },
     "samples": {

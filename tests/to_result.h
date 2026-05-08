@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gqlxy/observable.h>
+#include <gqlxy/client/observable.h>
 #include <gtest/gtest.h>
 
 #include <chrono>
