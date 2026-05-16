@@ -137,7 +137,8 @@ private:
     }
 
     boost::asio::awaitable<void> OnResponse(const rpp::dynamic_observer<GraphQLResponse>& sub) {
-        co_await ReadAsync();
+        while (!_parser.is_done())
+            co_await ReadAsync();
         sub.on_next(ParseJsonPayload(_parser.get().body()));
     }
 
