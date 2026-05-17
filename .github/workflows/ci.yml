@@ -52,6 +52,7 @@ jobs:
         shell: bash
         run: |
           git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg --depth=1
+          git -C /tmp/vcpkg fetch --depth=1 origin e5a1490e1409d175932ef6014519e9ae149ddb7c
           /tmp/vcpkg/bootstrap-vcpkg.sh -disableMetrics
           echo "VCPKG_ROOT=/tmp/vcpkg" >> $GITHUB_ENV
           echo "/tmp/vcpkg" >> $GITHUB_PATH
@@ -61,6 +62,7 @@ jobs:
         shell: pwsh
         run: |
           git clone https://github.com/microsoft/vcpkg.git C:\vcpkg-fresh --depth=1
+          git -C C:\vcpkg-fresh fetch --depth=1 origin e5a1490e1409d175932ef6014519e9ae149ddb7c
           C:\vcpkg-fresh\bootstrap-vcpkg.bat -disableMetrics
           echo "VCPKG_ROOT=C:\vcpkg-fresh" >> $env:GITHUB_ENV
           echo "C:\vcpkg-fresh" >> $env:GITHUB_PATH
