@@ -9,8 +9,9 @@ target_compile_features(gqlxy_client PUBLIC cxx_std_20)
 if(MSVC)
     target_compile_definitions(gqlxy_client PUBLIC _WIN32_WINNT=0x0A00)
     set_source_files_properties(
-        gqlxy/internal/http/https_stream.cpp
-        gqlxy/internal/ws/wss_stream.cpp
+        gqlxy/client/internal/http/https_stream.cpp
+        gqlxy/client/internal/ws/ws_stream.cpp
+        gqlxy/client/internal/ws/wss_stream.cpp
         PROPERTIES COMPILE_FLAGS /bigobj
     )
 endif()
