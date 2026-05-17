@@ -47,25 +47,20 @@ jobs:
         if: matrix.preset == 'x64-linux-debug'
         run: pip install gcovr
 
-      - name: Bootstrap vcpkg (Unix)
+      - name: Set up vcpkg (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg --depth=1
-          git -C /tmp/vcpkg fetch --depth=1 origin e5a1490e1409d175932ef6014519e9ae149ddb7c
-          /tmp/vcpkg/bootstrap-vcpkg.sh -disableMetrics
-          echo "VCPKG_ROOT=/tmp/vcpkg" >> $GITHUB_ENV
-          echo "/tmp/vcpkg" >> $GITHUB_PATH
+          echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> $GITHUB_ENV
+          echo "$VCPKG_INSTALLATION_ROOT" >> $GITHUB_PATH
 
-      - name: Bootstrap vcpkg (Windows)
+      - name: Set up vcpkg (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg-fresh --depth=1
-          git -C C:\vcpkg-fresh fetch --depth=1 origin e5a1490e1409d175932ef6014519e9ae149ddb7c
-          C:\vcpkg-fresh\bootstrap-vcpkg.bat -disableMetrics
-          echo "VCPKG_ROOT=C:\vcpkg-fresh" >> $env:GITHUB_ENV
-          echo "C:\vcpkg-fresh" >> $env:GITHUB_PATH
+          git -C C:\vcpkg pull --ff-only
+          C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+          echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
 
       - name: Cache vcpkg packages (Unix)
         if: runner.os != 'Windows'
