@@ -44,7 +44,8 @@
         "oatpp-openssl",
         {
           "name": "gqlxy-server",
-          "features": ["standalone-server"]
+          "features": ["standalone-server"],
+          "version>=": "0.1.1"
         }
       ]
     },
