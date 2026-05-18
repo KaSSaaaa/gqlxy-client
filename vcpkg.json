@@ -1,6 +1,6 @@
 {
   "name": "gqlxy-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "C++ GraphQL client with HTTP/WS/SSE support, ReactivePlusPlus reactivity, and C++20 coroutines",
   "homepage": "https://github.com/KaSSaaaa/gqlxy-client",
   "license": "MIT",
