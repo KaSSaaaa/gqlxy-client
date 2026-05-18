@@ -1,10 +1,10 @@
 #pragma once
 
 #include <chrono>
-#include <gqlxy/resolver_args.h>
-#include <gqlxy/resolvers.h>
-#include <gqlxy/schema.h>
-#include <gqlxy/subscription.h>
+#include <gqlxy/server/resolver_args.h>
+#include <gqlxy/server/resolvers.h>
+#include <gqlxy/server/schema.h>
+#include <gqlxy/client/subscription.h>
 #include <map>
 #include <memory>
 #include <string>

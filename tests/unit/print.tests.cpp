@@ -1,5 +1,5 @@
-#include <gqlxy/parser/peg/parser/query/parse_document.h>
-#include <gqlxy/print.h>
+#include <gqlxy/core/parser/peg/parser/query/parse_document.h>
+#include <gqlxy/client/print.h>
 #include <gtest/gtest.h>
 
 using namespace std;

@@ -1,7 +1,7 @@
-#include <gqlxy/parser/peg/parser/query/parse_document.h>
-#include <gqlxy/print.h>
-#include <gqlxy/transforms/add_typename.h>
-#include <gqlxy/utils/ranges.h>
+#include <gqlxy/core/parser/peg/parser/query/parse_document.h>
+#include <gqlxy/client/print.h>
+#include <gqlxy/client/transforms/add_typename.h>
+#include <gqlxy/core/utils/ranges.h>
 #include <gtest/gtest.h>
 
 using namespace std;

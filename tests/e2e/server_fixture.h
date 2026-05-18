@@ -7,7 +7,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <gqlxy/server/standalone_server.h>
+#include <gqlxy/server/standalone/standalone_server.h>
 #include <gtest/gtest.h>
 #include <memory>
 #include <optional>

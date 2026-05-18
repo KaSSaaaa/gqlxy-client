@@ -1,9 +1,9 @@
-#include <gqlxy/cache/in_memory_cache.h>
-#include <gqlxy/client.h>
-#include <gqlxy/links/http_link.h>
-#include <gqlxy/links/split_link.h>
-#include <gqlxy/links/ws_link.h>
-#include <gqlxy/results.h>
+#include <gqlxy/client/cache/in_memory_cache.h>
+#include <gqlxy/client/client.h>
+#include <gqlxy/client/links/http_link.h>
+#include <gqlxy/client/links/split_link.h>
+#include <gqlxy/client/links/ws_link.h>
+#include <gqlxy/core/results.h>
 #include <iostream>
 
 using namespace std;
