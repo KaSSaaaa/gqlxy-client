@@ -39,11 +39,11 @@ target_link_libraries(my_app PRIVATE gqlxy::client)
 ### Construct a client
 
 ```cpp
-#include <gqlxy/client.h>
-#include <gqlxy/links/http_link.h>
-#include <gqlxy/links/ws_link.h>
-#include <gqlxy/links/split_link.h>
-#include <gqlxy/cache/in_memory_cache.h>
+#include <gqlxy/client/client.h>
+#include <gqlxy/client/links/http_link.h>
+#include <gqlxy/client/links/ws_link.h>
+#include <gqlxy/client/links/split_link.h>
+#include <gqlxy/client/cache/in_memory_cache.h>
 
 using namespace gqlxy;
 

@@ -40,6 +40,37 @@ To run the tests:
 ctest --test-dir out/build/arm64-osx-debug --output-on-failure
 ```
 
+### vcpkg (recommended)
+
+GQLXY Client is available as a vcpkg port from a custom registry.
+
+Add the registry and the dependency to your `vcpkg.json`:
+
+```json
+{
+  "dependencies": ["gqlxy-client"],
+  "configuration": {
+    ...
+    "registries": [
+      ...
+      {
+        "kind": "git",
+        "repository": "https://github.com/KaSSaaaa/vcpkg.git",
+        "reference": "feature/gqlxy",
+        "packages": ["gqlxy-*"]
+      }
+    ]
+  }
+}
+```
+
+Then wire it up in CMake:
+
+```cmake
+find_package(gqlxy-client CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE gqlxy::client)
+```
+
 ### FetchContent
 
 ```cmake
